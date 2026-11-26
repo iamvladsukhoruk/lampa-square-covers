@@ -5,6 +5,7 @@
     var Lampa = window.Lampa;
     var styleId = 'lampa-cinema-card-style';
     var stateKey = '__lampaCinemaCard';
+    var openingKey = '__lampaCinemaOpening';
     var backgroundSetting = 'lampa_cinema_background';
     var backgroundAttribute = 'data-lampa-cinema-background';
     if (!Lampa || !Lampa.Listener || document.getElementById(styleId)) return;
@@ -13,37 +14,64 @@
     style.id = styleId;
     style.textContent = [
         '.lampa-cinema-page { position: relative; z-index: 0; }',
-        '.lampa-cinema-page > .lampa-cinema-art, .lampa-cinema-page > .lampa-cinema-ambient {',
+        '.lampa-cinema-surface > .lampa-cinema-art, .lampa-cinema-surface > .lampa-cinema-ambient {',
         '    position: absolute; top: -4em; right: 0; bottom: auto; left: 0;',
         '    width: 100%; height: 100vh; height: 100dvh; overflow: hidden; pointer-events: none;',
         '}',
-        '.lampa-cinema-page > .lampa-cinema-ambient {',
+        '.lampa-cinema-surface > .lampa-cinema-ambient {',
         '    z-index: -2; background: linear-gradient(145deg, #202d3b, #0c1119 68%, #080c12);',
         '}',
-        '.lampa-cinema-ambient canvas { width: 100%; height: 100%; display: block; image-rendering: auto; }',
+        '.lampa-cinema-ambient canvas {',
+        '    width: 100%; height: 100%; display: block; image-rendering: auto; opacity: 0; transition: opacity .36s ease;',
+        '}',
+        '.lampa-cinema-ambient--ready canvas { opacity: 1; }',
         '.lampa-cinema-ambient:after, .lampa-cinema-art:after {',
         '    content: ""; position: absolute; top: 0; right: 0; bottom: 0; left: 0;',
         '}',
         '.lampa-cinema-ambient:after {',
         '    background: linear-gradient(148deg, rgba(8,12,18,.55), rgba(8,12,18,.72) 62%, rgba(8,12,18,.95));',
         '}',
-        '.lampa-cinema-page > .lampa-cinema-art {',
-        '    z-index: -1; opacity: 1; background: center 42% / cover no-repeat;',
+        '.lampa-cinema-surface > .lampa-cinema-art {',
+        '    z-index: -1; opacity: 1;',
         '    -webkit-mask-image: linear-gradient(#000 72%, transparent 100%);',
         '    mask-image: linear-gradient(#000 72%, transparent 100%);',
         '    transition: opacity .28s ease-out;',
         '}',
-        '.lampa-cinema-page > .lampa-cinema-art.dim { opacity: 0; }',
+        '.lampa-cinema-surface > .lampa-cinema-art.dim { opacity: 0; }',
+        '.lampa-cinema-photo {',
+        '    position: absolute; top: 0; right: 0; bottom: 0; left: 0; background: center 42% / cover no-repeat;',
+        '}',
+        '.lampa-cinema-photo--appear { animation: lampa-cinema-reveal .38s ease-out both; }',
+        '@keyframes lampa-cinema-reveal { from { opacity: 0; } to { opacity: 1; } }',
         '.lampa-cinema-art:after {',
         '    background: linear-gradient(180deg, rgba(12,17,25,.52), transparent 23%, transparent 41%, rgba(12,17,25,.56) 68%, rgba(12,17,25,.84) 100%),',
         '                linear-gradient(90deg, rgba(12,17,25,.72), rgba(12,17,25,.23) 43%, transparent 75%);',
         '}',
-        '.lampa-cinema-page > .lampa-cinema-art:not(.lampa-cinema-art-ready),',
-        '[data-lampa-cinema-background="gradient"] .lampa-cinema-page > .lampa-cinema-art,',
-        '[data-lampa-cinema-background="black"] .lampa-cinema-page > .lampa-cinema-art { visibility: hidden; }',
-        '[data-lampa-cinema-background="black"] .lampa-cinema-page > .lampa-cinema-ambient { background: #000; }',
+        '.lampa-cinema-surface > .lampa-cinema-art:not(.lampa-cinema-art-ready),',
+        '[data-lampa-cinema-background="gradient"] .lampa-cinema-surface > .lampa-cinema-art,',
+        '[data-lampa-cinema-background="black"] .lampa-cinema-surface > .lampa-cinema-art { visibility: hidden; }',
+        '[data-lampa-cinema-background="black"] .lampa-cinema-surface > .lampa-cinema-ambient { background: #000; }',
         '[data-lampa-cinema-background="black"] .lampa-cinema-ambient canvas,',
         '[data-lampa-cinema-background="black"] .lampa-cinema-ambient:after { display: none; }',
+        '.lampa-cinema-opening {',
+        '    position: absolute; z-index: 0; top: 0; right: 0; left: 0; height: calc(100vh - 4em);',
+        '    height: calc(100dvh - 4em); opacity: 0; pointer-events: none; transition: opacity .28s ease;',
+        '}',
+        '.activity--load > .lampa-cinema-opening, .lampa-cinema-opening--handoff { opacity: 1; }',
+        '.lampa-cinema-activity > .activity__body { z-index: 1; }',
+        '.lampa-cinema-activity.activity--load > .activity__loader { background-image: none; }',
+        '.lampa-cinema-progress {',
+        '    position: absolute; left: 4.2vw; bottom: 3.25em; width: 6.5em; height: .16em; overflow: hidden;',
+        '    border-radius: .16em; background: rgba(249,244,236,.2); visibility: hidden;',
+        '}',
+        '.activity--load > .lampa-cinema-opening > .lampa-cinema-progress {',
+        '    visibility: visible; animation: lampa-cinema-reveal .25s .14s both;',
+        '}',
+        '.lampa-cinema-progress:after {',
+        '    content: ""; display: block; width: 48%; height: 100%; background: #f9f4ec;',
+        '    animation: lampa-cinema-progress 1.25s cubic-bezier(.45,0,.55,1) infinite;',
+        '}',
+        '@keyframes lampa-cinema-progress { from { transform: translateX(-105%); } to { transform: translateX(215%); } }',
         '.lampa-cinema-page > .full-start__background:not(.lampa-cinema-art) { visibility: hidden; }',
         '.lampa-cinema-page > .scroll.scroll--mask { -webkit-mask-image: none; mask-image: none; }',
         '.lampa-cinema-page .lampa-cinema-hero {',
@@ -85,18 +113,25 @@
         '    font-family: Verdana, "Trebuchet MS", sans-serif; font-weight: 700; letter-spacing: -.047em;',
         '}',
         '.lampa-cinema-hero .lampa-cinema-title-long { font-size: 3em; }',
-        '.lampa-cinema-hero .lampa-cinema-title-translation {',
-        '    font-family: inherit; font-size: 1.23em; font-weight: 600; line-height: 1.25;',
-        '    letter-spacing: 0; color: #dce2e9; margin-bottom: .7em;',
+        '.lampa-cinema-title-slot {',
+        '    position: relative; display: flex; flex-direction: column; justify-content: flex-end;',
+        '    min-height: 7.8em; margin: 0 0 .7em;',
         '}',
-        '.lampa-cinema-hero .lampa-cinema-title-accessible {',
-        '    position: absolute; width: 1px; height: 1px; overflow: hidden;',
-        '    clip: rect(0, 0, 0, 0); white-space: nowrap;',
+        '.lampa-cinema-hero .lampa-cinema-title-slot > .lampa-cinema-title { margin: 0; transition: opacity .32s ease; }',
+        '.lampa-cinema-title-slot--branded > .lampa-cinema-title { opacity: 0; }',
+        '.lampa-cinema-brand {',
+        '    position: absolute; right: 0; bottom: 0; left: 0; display: flex; flex-direction: column;',
+        '    align-items: flex-start; animation: lampa-cinema-reveal .32s ease both;',
         '}',
         '.lampa-cinema-logo {',
-        '    display: block; width: auto; height: auto; max-width: 90%; max-height: 8.5em;',
-        '    margin: 0 0 .65em; object-fit: contain; object-position: left center;',
+        '    display: block; width: auto; height: auto; max-width: 90%; max-height: 7.5em;',
+        '    object-fit: contain; object-position: left center;',
         '    filter: drop-shadow(0 .22em .56em rgba(12,17,25,.7)); pointer-events: none;',
+        '}',
+        '.lampa-cinema-brand--translated .lampa-cinema-logo { max-height: 5.3em; }',
+        '.lampa-cinema-title-caption {',
+        '    margin-top: .42em; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;',
+        '    color: #dce2e9; font-size: 1.2em; font-weight: 600; line-height: 1.25;',
         '}',
         '.lampa-cinema-hero .full-start-new__tagline { color: #dce2e9; margin-bottom: .65em; }',
         '.lampa-cinema-hero .full-start-new__rate-line { margin-bottom: .65em; }',
@@ -108,15 +143,22 @@
         '    }',
         '    .lampa-cinema-hero .full-start-new__title, .lampa-cinema-hero .full-start__title { font-size: 2.65em; }',
         '    .lampa-cinema-hero .lampa-cinema-title-long { font-size: 2.2em; }',
-        '    .lampa-cinema-hero .lampa-cinema-title-translation { font-size: 1.14em; }',
-        '    .lampa-cinema-logo { max-height: 6.8em; }',
+        '    .lampa-cinema-title-slot { min-height: 6.5em; }',
+        '    .lampa-cinema-logo { max-height: 6.3em; }',
+        '    .lampa-cinema-brand--translated .lampa-cinema-logo { max-height: 4.5em; }',
         '}',
-        '@media (prefers-reduced-motion: reduce) { .lampa-cinema-page > .lampa-cinema-art { transition: none; } }'
+        '@media (prefers-reduced-motion: reduce) {',
+        '    .lampa-cinema-surface > .lampa-cinema-art, .lampa-cinema-opening, .lampa-cinema-ambient canvas,',
+        '    .lampa-cinema-hero .lampa-cinema-title-slot > .lampa-cinema-title { transition: none; }',
+        '    .lampa-cinema-photo--appear, .lampa-cinema-brand, .lampa-cinema-progress:after,',
+        '    .activity--load > .lampa-cinema-opening > .lampa-cinema-progress { animation: none; }',
+        '}'
     ].join('\n');
     document.head.appendChild(style);
 
     // The full-card event runs after Lampa has built its native details and controls.
     Lampa.Listener.follow('full', renderCinemaCard);
+    Lampa.Listener.follow('activity', handleCinemaActivity);
     Lampa.CinemaCard = {
         preferredLogoUrl: function (card) {
             var choices = logoChoices(card, mediaLanguage(card));
@@ -159,8 +201,9 @@
         updateBackgroundMode(setting(backgroundSetting));
     }
 
-    function previewUrl(card) {
-        return assetUrl(card.backdrop_path, 'w1280') || assetUrl(card.background_image, 'w1280');
+    function previewUrl(card, size) {
+        size = size || 'w1280';
+        return assetUrl(card.backdrop_path, size) || assetUrl(card.background_image, size);
     }
 
     function startPreview(url) {
@@ -273,132 +316,303 @@
         next();
     }
 
+    function nodeOf(value) {
+        return value && (value.nodeType === 1 ? value : value[0]);
+    }
+
+    function activityNode(object) {
+        var activity = object && object.activity;
+        return activity && typeof activity.render === 'function' ? nodeOf(activity.render(true)) : null;
+    }
+
+    function preloadedAssets(object, card) {
+        return Lampa.CinemaPreload && Lampa.CinemaPreload.assetsFor(object, card);
+    }
+
+    function watchImage(image, callback) {
+        if (!image) return callback(null);
+        function detach() {
+            image.removeEventListener('load', ready);
+            image.removeEventListener('error', ready);
+        }
+        function ready() {
+            detach();
+            callback(image.naturalWidth ? image : null);
+        }
+        if (image.complete) ready();
+        else {
+            image.addEventListener('load', ready);
+            image.addEventListener('error', ready);
+        }
+        return detach;
+    }
+
+    function createSurface() {
+        var art = document.createElement('div');
+        art.className = 'lampa-cinema-art';
+        art.setAttribute('aria-hidden', 'true');
+        var ambient = document.createElement('div');
+        ambient.className = 'lampa-cinema-ambient';
+        ambient.setAttribute('aria-hidden', 'true');
+        var canvas = document.createElement('canvas');
+        canvas.width = 4;
+        canvas.height = 3;
+        ambient.appendChild(canvas);
+        return { art: art, ambient: ambient, canvas: canvas };
+    }
+
+    function mountSurface(root, surface) {
+        root.classList.add('lampa-cinema-surface');
+        root.insertBefore(surface.ambient, root.firstChild);
+        root.insertBefore(surface.art, root.firstChild);
+    }
+
+    function removeElement(element) {
+        if (element && element.parentNode) element.parentNode.removeChild(element);
+    }
+
+    function paintBackdrop(surface, image, animate) {
+        if (surface.url === image.src) return;
+        var previous = surface.photo;
+        var photo = document.createElement('div');
+        photo.className = animate ? 'lampa-cinema-photo lampa-cinema-photo--appear' : 'lampa-cinema-photo';
+        photo.style.backgroundImage = 'url(' + JSON.stringify(image.src) + ')';
+        surface.art.appendChild(photo);
+        surface.art.classList.add('lampa-cinema-art-ready');
+        surface.photo = photo;
+        surface.url = image.src;
+        if (previous) {
+            if (animate) setTimeout(function () { removeElement(previous); }, 400);
+            else removeElement(previous);
+        }
+
+        // Display the tiny canvas directly, including for images without CORS permission.
+        try {
+            var canvas = surface.canvas;
+            var context = canvas.getContext('2d');
+            if (context) {
+                context.drawImage(image, 0, 0, canvas.width, canvas.height);
+                surface.ambient.classList.add('lampa-cinema-ambient--ready');
+            }
+        } catch (error) {
+            // The CSS gradient is the fallback on devices without canvas support.
+        }
+    }
+
+    function closeOpening(slide, opening) {
+        if (slide[openingKey] !== opening) return;
+        clearTimeout(opening.timer);
+        if (opening.observer) opening.observer.disconnect();
+        if (opening.detachPreview) opening.detachPreview();
+        removeElement(opening.element);
+        slide.classList.remove('lampa-cinema-activity');
+        delete slide[openingKey];
+    }
+
+    function scheduleOpeningClose(slide, opening) {
+        if (opening.timer) return;
+        opening.timer = setTimeout(function () {
+            opening.timer = null;
+            if (!slide.classList.contains('activity--load')) closeOpening(slide, opening);
+        }, 380);
+    }
+
+    function warmLogo(card, image) {
+        var url = Lampa.CinemaCard.preferredLogoUrl(card);
+        return image && image.src === url ? image : startPreview(url);
+    }
+
+    function handleCinemaActivity(event) {
+        if (!event || event.component !== 'full') return;
+        var object = event.object;
+        var slide = activityNode(object);
+        if (!slide || !slide.querySelector('.activity__body')) return;
+
+        var existing = slide[openingKey];
+        if (event.type === 'destroy' || event.type === 'archive') {
+            if (existing) closeOpening(slide, existing);
+            return;
+        }
+        var startedLoading = (event.type === 'create' || event.type === 'start') &&
+            slide.classList.contains('activity--load');
+        if (existing || (event.type !== 'init' && !startedLoading)) return;
+
+        var layer = document.createElement('div');
+        layer.className = 'lampa-cinema-opening';
+        var surface = createSurface();
+        mountSurface(layer, surface);
+        var progress = document.createElement('div');
+        progress.className = 'lampa-cinema-progress';
+        progress.setAttribute('role', 'progressbar');
+        var labels = { ru: 'Открывается карточка', uk: 'Відкривається картка', en: 'Opening card' };
+        progress.setAttribute('aria-label', labels[languageCode(setting('language'))] || labels.en);
+        layer.appendChild(progress);
+        var opening = slide[openingKey] = { element: layer, surface: surface };
+        slide.insertBefore(layer, slide.firstChild);
+        slide.classList.add('lampa-cinema-activity');
+
+        if (typeof MutationObserver === 'function') {
+            opening.observer = new MutationObserver(function () {
+                if (!slide.classList.contains('activity--load') && slide.classList.contains('activity--active')) {
+                    scheduleOpeningClose(slide, opening);
+                }
+            });
+            opening.observer.observe(slide, { attributes: true, attributeFilter: ['class'] });
+        }
+
+        var card = object && (object.card || object.movie);
+        var permit = Lampa.Account && Lampa.Account.Permit;
+        if (!card || card.blocked || card.adult || card.lgbt || (permit && permit.child)) return;
+
+        var assets = preloadedAssets(object, card);
+        opening.paths = [card.backdrop_path, card.background_image];
+        opening.preview = assets && assets.preview || startPreview(previewUrl(card, 'w780'));
+        opening.logo = warmLogo(card, assets && assets.logo);
+        opening.detachPreview = watchImage(opening.preview, function (image) {
+            if (image && slide[openingKey] === opening) paintBackdrop(surface, image, true);
+        });
+    }
+
+    function sameFrameUpgrades(paths, displayed) {
+        // A sharp version of the same composition can replace the preview without a scene cut.
+        for (var i = 0; i < paths.length; i++) {
+            var path = paths[i];
+            var medium = assetUrl(path, 'w1280');
+            if (displayed !== medium && displayed !== assetUrl(path, 'w780')) continue;
+            var original = window.innerWidth >= 1000 ? assetUrl(path, 'original') : '';
+            return [original, medium].filter(function (url, index, list) {
+                return url && url !== displayed && list.indexOf(url) === index;
+            });
+        }
+        return [];
+    }
+
     function removePreviousCard(state) {
-        if (state.art.parentNode) state.art.parentNode.removeChild(state.art);
-        if (state.ambient.parentNode) state.ambient.parentNode.removeChild(state.ambient);
-        if (state.logo && state.logo.parentNode) state.logo.parentNode.removeChild(state.logo);
+        removeElement(state.surface.art);
+        removeElement(state.surface.ambient);
+        if (state.titleSlot && state.titleSlot.parentNode) {
+            state.titleSlot.parentNode.insertBefore(state.title, state.titleSlot);
+            removeElement(state.titleSlot);
+        }
         state.hero.classList.remove('lampa-cinema-hero');
-        state.title.classList.remove('lampa-cinema-title', 'lampa-cinema-title-long',
-            'lampa-cinema-title-accessible', 'lampa-cinema-title-translation');
+        state.title.classList.remove('lampa-cinema-title', 'lampa-cinema-title-long');
         state.title.removeAttribute('data-cinema-type');
     }
 
     function renderCinemaCard(event) {
-        if (!event || (event.type !== 'complite' && event.type !== 'complete')) return;
-        var root = event.body && (event.body.nodeType === 1 ? event.body : event.body[0]);
-        var card = (event.data && event.data.movie) || (event.object && event.object.card);
-        if (!root || !card) return;
+        if (!event) return;
+        var object = event.object;
+        var card = (event.data && event.data.movie) || (object && object.card);
+        if (!card) return;
 
-        var hero = root.querySelector('.full-start-new') || root.querySelector('.full-start');
+        var slide = activityNode(object);
+        var opening = slide && slide[openingKey];
+        if (event.type === 'start') {
+            if (opening) {
+                var logoAssets = preloadedAssets(object, card);
+                opening.logo = warmLogo(card, (logoAssets && logoAssets.logo) || opening.logo);
+            }
+            return;
+        }
+        if (event.type !== 'complite' && event.type !== 'complete') return;
+
+        var root = nodeOf(event.body);
+        var hero = root && (root.querySelector('.full-start-new') || root.querySelector('.full-start'));
         var title = hero && hero.querySelector('.full-start-new__title, .full-start__title');
         if (!title) return;
 
         var previous = root[stateKey];
         if (previous && previous.hero === hero && previous.card === card) return;
         if (previous) removePreviousCard(previous);
-        root.classList.remove('lampa-cinema-page');
 
-        var backdrops = backdropChoices(card);
-        var art = document.createElement('div');
-        art.className = 'lampa-cinema-art full-start__background';
-        art.setAttribute('aria-hidden', 'true');
-        var ambient = document.createElement('div');
-        ambient.className = 'lampa-cinema-ambient';
-        ambient.setAttribute('aria-hidden', 'true');
-        var colorMap = document.createElement('canvas');
-        colorMap.width = 4;
-        colorMap.height = 3;
-        ambient.appendChild(colorMap);
-        var state = root[stateKey] = { card: card, hero: hero, title: title, art: art, ambient: ambient };
+        var surface = createSurface();
+        var state = root[stateKey] = { card: card, hero: hero, title: title, surface: surface };
+        var stock = root.querySelector('.full-start__background');
+        surface.art.classList.add('full-start__background');
+        if (stock && stock.classList.contains('dim')) surface.art.classList.add('dim');
+        mountSurface(root, surface);
+        root.classList.add('lampa-cinema-page');
+        hero.classList.add('lampa-cinema-hero');
+        title.classList.add('lampa-cinema-title');
+        title.setAttribute('data-cinema-type', titleType(card));
+        if (title.textContent.trim().length > 38) title.classList.add('lampa-cinema-title-long');
 
-        var prefetched = Lampa.CinemaPreload && Lampa.CinemaPreload.assetsFor(event.object, card);
-        var preview = prefetched && prefetched.preview;
-        var firstUrl = previewUrl(card);
+        if (opening) {
+            // Keep the same backdrop under the native body's opacity transition.
+            opening.element.classList.add('lampa-cinema-opening--handoff');
+            scheduleOpeningClose(slide, opening);
+        }
+
+        var assets = preloadedAssets(object, card);
         var language = mediaLanguage(card);
         var logos = logoChoices(card, language);
+        var preview = (opening && opening.preview) || (assets && assets.preview);
+        if (!preview && opening) preview = startPreview(previewUrl(card, 'w780'));
+        var backdrops = backdropChoices(card);
+        if (!preview && previewUrl(card) !== backdrops[0]) preview = startPreview(previewUrl(card));
 
-        function currentCard() {
+        function current() {
             return root[stateKey] === state && root.contains(hero) && hero.contains(title);
         }
 
-        function mountLogo() {
-            if (!art.parentNode || !state.logo || !state.logoInfo || state.logo.parentNode) return;
-            title.parentNode.insertBefore(state.logo, title);
-            var originalTitle = card.original_title || card.original_name;
-            var showTranslation = state.logoInfo.language !== language && title.textContent.trim() !== originalTitle;
-            title.classList.add(showTranslation ? 'lampa-cinema-title-translation' : 'lampa-cinema-title-accessible');
-        }
-
-        function showBackdrop(image) {
-            art.style.backgroundImage = 'url(' + JSON.stringify(image.src) + ')';
-            art.classList.add('lampa-cinema-art-ready');
-            // Stretch a tiny canvas to blend the colors. Drawing requires no pixel readback or CORS.
-            try {
-                var context = colorMap.getContext('2d');
-                if (context) context.drawImage(image, 0, 0, colorMap.width, colorMap.height);
-            } catch (error) {
-                // The ambient CSS remains visible on devices without canvas support.
-            }
-        }
-
-        function mountScene() {
-            // Reuse the native background's scroll-dimming hook.
-            var stockBackground = root.querySelector('.full-start__background');
-            if (stockBackground && stockBackground.classList.contains('dim')) art.classList.add('dim');
-            root.insertBefore(ambient, root.firstChild);
-            root.insertBefore(art, root.firstChild);
-            root.classList.add('lampa-cinema-page');
-            hero.classList.add('lampa-cinema-hero');
-            title.classList.add('lampa-cinema-title');
-            title.setAttribute('data-cinema-type', titleType(card));
-            if (title.textContent.trim().length > 38) title.classList.add('lampa-cinema-title-long');
-            mountLogo();
-        }
-
-        function loadFinalBackdrop(displayed) {
-            var position = backdrops.indexOf(displayed);
-            var choices = position < 0 ? backdrops : backdrops.slice(0, position);
-            if (!choices.length) return;
-            var background = new Image();
-            loadFirstImage(background, choices, function (index) {
-                if (index !== -1 && currentCard()) showBackdrop(background);
-            });
-        }
-
         if (logos.length) {
-            var warmLogo = prefetched && prefetched.logo;
-            var readyLogo = warmLogo && warmLogo.complete && warmLogo.naturalWidth && warmLogo.src === logos[0].url;
-            var logo = readyLogo ? warmLogo.cloneNode(false) : new Image();
-            logo.className = 'lampa-cinema-logo';
-            logo.alt = '';
-            state.logo = logo;
-            if (readyLogo) state.logoInfo = logos[0];
-            else loadFirstImage(logo, logos.map(function (item) { return item.url; }), function (selected) {
-                if (selected !== -1 && currentCard()) {
-                    state.logoInfo = logos[selected];
-                    mountLogo();
+            var slot = state.titleSlot = document.createElement('div');
+            slot.className = 'lampa-cinema-title-slot';
+            title.parentNode.insertBefore(slot, title);
+            slot.appendChild(title);
+            var preferred = (opening && opening.logo) || (assets && assets.logo);
+
+            function showLogo(image, info) {
+                if (!current()) return;
+                var brand = document.createElement('div');
+                brand.className = 'lampa-cinema-brand';
+                brand.setAttribute('aria-hidden', 'true');
+                image.className = 'lampa-cinema-logo';
+                image.alt = '';
+                brand.appendChild(image);
+                var text = title.textContent.trim();
+                var originalTitle = card.original_title || card.original_name;
+                if (info.language !== language && text !== originalTitle) {
+                    var caption = document.createElement('div');
+                    caption.className = 'lampa-cinema-title-caption';
+                    caption.textContent = text;
+                    brand.classList.add('lampa-cinema-brand--translated');
+                    brand.appendChild(caption);
                 }
+                slot.appendChild(brand);
+                slot.classList.add('lampa-cinema-title-slot--branded');
+            }
+
+            function loadLogo(from) {
+                var logo = new Image();
+                loadFirstImage(logo, logos.slice(from).map(function (item) { return item.url; }), function (index) {
+                    if (index !== -1) showLogo(logo, logos[from + index]);
+                });
+            }
+
+            if (preferred && preferred.src === logos[0].url) {
+                watchImage(preferred, function (image) {
+                    if (!current()) return;
+                    if (image) showLogo(image.cloneNode(false), logos[0]);
+                    else loadLogo(1);
+                });
+            } else loadLogo(0);
+        }
+
+        watchImage(preview, function (image) {
+            if (!current()) return;
+            var choices = backdrops;
+            if (image) {
+                var alreadyVisible = opening && opening.surface.url === image.src;
+                paintBackdrop(surface, image, !alreadyVisible);
+                var paths = bestBackdropPaths(card).concat(opening && opening.paths || []);
+                choices = sameFrameUpgrades(paths, image.src);
+            }
+            if (!choices.length) return;
+            var backdrop = new Image();
+            loadFirstImage(backdrop, choices, function (index) {
+                if (index !== -1 && current()) paintBackdrop(surface, backdrop, true);
             });
-        }
-
-        mountScene();
-        if (!backdrops.length) return;
-        if (!preview && firstUrl !== backdrops[0]) preview = startPreview(firstUrl);
-        if (!preview) return loadFinalBackdrop('');
-
-        function previewFinished() {
-            preview.removeEventListener('load', previewFinished);
-            preview.removeEventListener('error', previewFinished);
-            if (!currentCard()) return;
-            var displayed = preview.naturalWidth ? preview.src : '';
-            if (displayed) showBackdrop(preview);
-            loadFinalBackdrop(displayed);
-        }
-
-        if (preview.complete) previewFinished();
-        else {
-            preview.addEventListener('load', previewFinished);
-            preview.addEventListener('error', previewFinished);
-        }
+        });
     }
 }());
