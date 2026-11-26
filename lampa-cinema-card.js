@@ -1,216 +1,378 @@
-// Lampa TV — полноэкранное оформление карточек фильмов и сериалов.
+// Lampa TV — предзагрузка карточки фильма или сериала + плавный первый фон без рывков.
 (function () {
     'use strict';
 
     var Lampa = window.Lampa;
-    var styleId = 'lampa-cinema-card-style';
-    var stateKey = '__lampaCinemaCard';
-    var openingKey = '__lampaCinemaOpening';
-    var backgroundSetting = 'lampa_cinema_background';
-    var backgroundAttribute = 'data-lampa-cinema-background';
-    if (!Lampa || !Lampa.Listener || document.getElementById(styleId)) return;
+    if (!Lampa || Lampa.CinemaPreload) return;
 
-    var style = document.createElement('style');
-    style.id = styleId;
-    style.textContent = [
-        '.lampa-cinema-page { position: relative; z-index: 0; }',
-        '.lampa-cinema-surface > .lampa-cinema-art, .lampa-cinema-surface > .lampa-cinema-ambient {',
-        '    position: absolute; top: -4em; right: 0; bottom: auto; left: 0;',
-        '    width: 100%; height: 100vh; height: 100dvh; overflow: hidden; pointer-events: none;',
-        '}',
-        '.lampa-cinema-surface > .lampa-cinema-ambient {',
-        '    z-index: -2; background: linear-gradient(145deg, #202d3b, #0c1119 68%, #080c12);',
-        '}',
-        '.lampa-cinema-ambient canvas {',
-        '    width: 100%; height: 100%; display: block; image-rendering: auto; opacity: 0; transition: opacity .36s ease;',
-        '}',
-        '.lampa-cinema-ambient--ready canvas { opacity: 1; }',
-        '.lampa-cinema-ambient:after, .lampa-cinema-art:after {',
-        '    content: ""; position: absolute; top: 0; right: 0; bottom: 0; left: 0;',
-        '}',
-        '.lampa-cinema-ambient:after {',
-        '    background: linear-gradient(148deg, rgba(8,12,18,.55), rgba(8,12,18,.72) 62%, rgba(8,12,18,.95));',
-        '}',
-        '.lampa-cinema-surface > .lampa-cinema-art {',
-        '    z-index: -1; opacity: 1;',
-        '    -webkit-mask-image: linear-gradient(#000 72%, transparent 100%);',
-        '    mask-image: linear-gradient(#000 72%, transparent 100%);',
-        '    transition: opacity .28s ease-out;',
-        '}',
-        '.lampa-cinema-surface > .lampa-cinema-art.dim { opacity: 0; }',
-        '.lampa-cinema-photo {',
-        '    position: absolute; top: 0; right: 0; bottom: 0; left: 0; background: center 42% / cover no-repeat;',
-        '}',
-        '.lampa-cinema-photo--appear { animation: lampa-cinema-reveal .38s ease-out both; }',
-        '@keyframes lampa-cinema-reveal { from { opacity: 0; } to { opacity: 1; } }',
-        '.lampa-cinema-art:after {',
-        '    background: linear-gradient(180deg, rgba(12,17,25,.52), transparent 23%, transparent 41%, rgba(12,17,25,.56) 68%, rgba(12,17,25,.84) 100%),',
-        '                linear-gradient(90deg, rgba(12,17,25,.72), rgba(12,17,25,.23) 43%, transparent 75%);',
-        '}',
-        '.lampa-cinema-surface > .lampa-cinema-art:not(.lampa-cinema-art-ready),',
-        '[data-lampa-cinema-background="gradient"] .lampa-cinema-surface > .lampa-cinema-art,',
-        '[data-lampa-cinema-background="black"] .lampa-cinema-surface > .lampa-cinema-art { visibility: hidden; }',
-        '[data-lampa-cinema-background="black"] .lampa-cinema-surface > .lampa-cinema-ambient { background: #000; }',
-        '[data-lampa-cinema-background="black"] .lampa-cinema-ambient canvas,',
-        '[data-lampa-cinema-background="black"] .lampa-cinema-ambient:after { display: none; }',
-        '.lampa-cinema-opening {',
-        '    position: absolute; z-index: 0; top: 0; right: 0; left: 0; height: calc(100vh - 4em);',
-        '    height: calc(100dvh - 4em); opacity: 0; pointer-events: none; transition: opacity .28s ease;',
-        '}',
-        '.activity--load > .lampa-cinema-opening, .lampa-cinema-opening--handoff { opacity: 1; }',
-        '.lampa-cinema-activity > .activity__body { z-index: 1; }',
-        '.lampa-cinema-activity.activity--load > .activity__loader { background-image: none; }',
-        '.lampa-cinema-progress {',
-        '    position: absolute; left: 4.2vw; bottom: 3.25em; width: 6.5em; height: .16em; overflow: hidden;',
-        '    border-radius: .16em; background: rgba(249,244,236,.2); visibility: hidden;',
-        '}',
-        '.activity--load > .lampa-cinema-opening > .lampa-cinema-progress {',
-        '    visibility: visible; animation: lampa-cinema-reveal .25s .14s both;',
-        '}',
-        '.lampa-cinema-progress:after {',
-        '    content: ""; display: block; width: 48%; height: 100%; background: #f9f4ec;',
-        '    animation: lampa-cinema-progress 1.25s cubic-bezier(.45,0,.55,1) infinite;',
-        '}',
-        '@keyframes lampa-cinema-progress { from { transform: translateX(-105%); } to { transform: translateX(215%); } }',
-        '.lampa-cinema-page > .full-start__background:not(.lampa-cinema-art) { visibility: hidden; }',
-        '.lampa-cinema-page > .scroll.scroll--mask { -webkit-mask-image: none; mask-image: none; }',
-        '.lampa-cinema-page .lampa-cinema-hero {',
-        '    box-sizing: border-box; position: relative; display: flex; flex-direction: column;',
-        '    justify-content: flex-end; min-height: 78vh;',
-        '    min-height: calc(100vh - 6em); min-height: calc(100dvh - 6em);',
-        '    width: 100%; padding: 2em 4.2vw 2.6em; color: #f9f4ec;',
-        '}',
-        '.lampa-cinema-hero .full-start-new__body, .lampa-cinema-hero .full-start__body {',
-        '    display: block; width: 100%; height: auto; min-height: 0;',
-        '}',
-        '.lampa-cinema-hero .full-start-new__left, .lampa-cinema-hero .full-start__left { display: none; }',
-        '.lampa-cinema-hero .full-start-new__right, .lampa-cinema-hero .full-start__right {',
-        '    width: 100%; max-width: 47em; margin: 0; padding: 0; overflow: visible; background: none;',
-        '}',
-        '.lampa-cinema-hero .full-start-new__head, .lampa-cinema-hero .full-start__head {',
-        '    margin: 0 0 .8em; color: #dce2e9; text-shadow: 0 1px 5px #0c1119;',
-        '}',
-        '.lampa-cinema-hero .full-start-new__title, .lampa-cinema-hero .full-start__title {',
-        '    display: block; max-width: 100%; max-height: none; margin: 0 0 .25em;',
-        '    overflow: visible; -webkit-line-clamp: unset; line-clamp: unset;',
-        '    white-space: normal; word-wrap: break-word; overflow-wrap: break-word;',
-        '    color: #f9f4ec; font-size: 3.65em; font-weight: 700; line-height: 1.03;',
-        '    letter-spacing: -.028em; text-shadow: 0 .06em .28em rgba(12,17,25,.65);',
-        '}',
-        '.lampa-cinema-title[data-cinema-type="future"] {',
-        '    font-family: "Trebuchet MS", Verdana, sans-serif; font-weight: 700; letter-spacing: .045em;',
-        '}',
-        '.lampa-cinema-title[data-cinema-type="classic"] {',
-        '    font-family: Georgia, "Times New Roman", serif; font-weight: 400; letter-spacing: -.025em;',
-        '}',
-        '.lampa-cinema-title[data-cinema-type="suspense"] {',
-        '    font-family: "Arial Narrow", "Roboto Condensed", Arial, sans-serif; font-weight: 800; letter-spacing: -.037em;',
-        '}',
-        '.lampa-cinema-title[data-cinema-type="horror"] {',
-        '    font-family: Georgia, "Times New Roman", serif; font-weight: 700; letter-spacing: .034em;',
-        '}',
-        '.lampa-cinema-title[data-cinema-type="family"] {',
-        '    font-family: Verdana, "Trebuchet MS", sans-serif; font-weight: 700; letter-spacing: -.047em;',
-        '}',
-        '.lampa-cinema-hero .lampa-cinema-title-long { font-size: 3em; }',
-        '.lampa-cinema-title-slot {',
-        '    position: relative; display: flex; flex-direction: column; justify-content: flex-end;',
-        '    min-height: 7.8em; margin: 0 0 .7em;',
-        '}',
-        '.lampa-cinema-hero .lampa-cinema-title-slot > .lampa-cinema-title { margin: 0; transition: opacity .32s ease; }',
-        '.lampa-cinema-title-slot--branded > .lampa-cinema-title { opacity: 0; }',
-        '.lampa-cinema-brand {',
-        '    position: absolute; right: 0; bottom: 0; left: 0; display: flex; flex-direction: column;',
-        '    align-items: flex-start; animation: lampa-cinema-reveal .32s ease both;',
-        '}',
-        '.lampa-cinema-logo {',
-        '    display: block; width: auto; height: auto; max-width: 90%; max-height: 7.5em;',
-        '    object-fit: contain; object-position: left center;',
-        '    filter: drop-shadow(0 .22em .56em rgba(12,17,25,.7)); pointer-events: none;',
-        '}',
-        '.lampa-cinema-brand--translated .lampa-cinema-logo { max-height: 5.3em; }',
-        '.lampa-cinema-title-caption {',
-        '    margin-top: .42em; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;',
-        '    color: #dce2e9; font-size: 1.2em; font-weight: 600; line-height: 1.25;',
-        '}',
-        '.lampa-cinema-hero .full-start-new__tagline { color: #dce2e9; margin-bottom: .65em; }',
-        '.lampa-cinema-hero .full-start-new__rate-line { margin-bottom: .65em; }',
-        '.lampa-cinema-hero .full-start-new__details { line-height: 1.35; margin-bottom: .55em; }',
-        '.lampa-cinema-hero .full-start-new__reactions { margin-bottom: .7em; }',
-        '@media (max-width: 790px) {',
-        '    .lampa-cinema-page .lampa-cinema-hero {',
-        '        min-height: calc(100vh - 9em); min-height: calc(100dvh - 9em); padding: 2em 1.3em 1.6em;',
-        '    }',
-        '    .lampa-cinema-hero .full-start-new__title, .lampa-cinema-hero .full-start__title { font-size: 2.65em; }',
-        '    .lampa-cinema-hero .lampa-cinema-title-long { font-size: 2.2em; }',
-        '    .lampa-cinema-title-slot { min-height: 6.5em; }',
-        '    .lampa-cinema-logo { max-height: 6.3em; }',
-        '    .lampa-cinema-brand--translated .lampa-cinema-logo { max-height: 4.5em; }',
-        '}',
-        '@media (prefers-reduced-motion: reduce) {',
-        '    .lampa-cinema-surface > .lampa-cinema-art, .lampa-cinema-opening, .lampa-cinema-ambient canvas,',
-        '    .lampa-cinema-hero .lampa-cinema-title-slot > .lampa-cinema-title { transition: none; }',
-        '    .lampa-cinema-photo--appear, .lampa-cinema-brand, .lampa-cinema-progress:after,',
-        '    .activity--load > .lampa-cinema-opening > .lampa-cinema-progress { animation: none; }',
-        '}'
-    ].join('\n');
-    document.head.appendChild(style);
+    var api = Lampa.Api;
+    var nativeFull = api && api.full;
+    var focusTimer;
+    var warming;
+    var prepared;
+    var preloadLifetime = 30000;
+    var activeCurtain = null;
 
-    // The full-card event runs after Lampa has built its native details and controls.
-    Lampa.Listener.follow('full', renderCinemaCard);
-    Lampa.Listener.follow('activity', handleCinemaActivity);
-    Lampa.CinemaCard = {
-        preferredLogoUrl: function (card) {
-            var choices = logoChoices(card, mediaLanguage(card));
-            return choices.length ? choices[0].url : '';
+    injectStyles();
+
+    // Native card events are dispatched without bubbling.
+    document.addEventListener('hover:focus', prepareFocusedCard, true);
+    document.addEventListener('hover:hover', prepareFocusedCard, true);
+    document.addEventListener('hover:enter', function () { clearTimeout(focusTimer); }, true);
+    if (typeof nativeFull === 'function') api.full = openPreparedCard;
+
+    if (Lampa.Listener && typeof Lampa.Listener.follow === 'function') {
+        Lampa.Listener.follow('activity', onActivityEvent);
+        Lampa.Listener.follow('full', onFullEvent);
+    }
+
+    Lampa.CinemaPreload = {
+        assetsFor: function (params, card) {
+            var entry = preparedFor(params || (card && catalogParams(card)));
+            return entry ? { preview: entry.preview, logo: entry.logo } : null;
         }
     };
 
-    updateBackgroundMode(setting(backgroundSetting));
-    if (window.appready) addBackgroundSetting();
-    else Lampa.Listener.follow('app', function (event) {
-        if (event.type === 'ready') addBackgroundSetting();
-    });
+    function injectStyles() {
+        if (document.getElementById('cinema-preload-smooth-style')) return;
+        var style = document.createElement('style');
+        style.id = 'cinema-preload-smooth-style';
+        style.textContent = [
+            '.cp-has-curtain { position: relative; }',
+            '.cp-has-curtain .activity__loader {',
+            '  z-index: 25 !important;',
+            '  opacity: 0;',
+            '  animation: cp-loader-fade 0.4s cubic-bezier(0.22, 1, 0.36, 1) 0.45s forwards;',
+            '}',
+            '@keyframes cp-loader-fade {',
+            '  from { opacity: 0; }',
+            '  to { opacity: 0.75; }',
+            '}',
+            '.cp-backdrop-curtain {',
+            '  position: absolute;',
+            '  top: 0; left: 0; right: 0; bottom: 0;',
+            '  z-index: 20;',
+            '  pointer-events: none;',
+            '  overflow: hidden;',
+            '  background: #0d0e11;',
+            '  opacity: 0;',
+            '  transition: opacity 0.35s cubic-bezier(0.22, 1, 0.36, 1);',
+            '  will-change: opacity;',
+            '}',
+            '.cp-backdrop-curtain.cp-visible {',
+            '  opacity: 1;',
+            '}',
+            '.cp-backdrop-curtain.cp-leaving {',
+            '  opacity: 0;',
+            '  transition: opacity 0.48s cubic-bezier(0.4, 0, 0.2, 1);',
+            '}',
+            '.cp-backdrop-img {',
+            '  position: absolute;',
+            '  top: 0; left: 0; width: 100%; height: 100%;',
+            '  object-fit: cover;',
+            '  opacity: 0;',
+            '  transform: scale(1.045) translateZ(0);',
+            '  transition: opacity 0.62s cubic-bezier(0.22, 1, 0.36, 1), transform 0.95s cubic-bezier(0.22, 1, 0.36, 1);',
+            '  will-change: opacity, transform;',
+            '}',
+            '.cp-backdrop-img.cp-ready {',
+            '  opacity: 0.75;',
+            '  transform: scale(1) translateZ(0);',
+            '}',
+            '.cp-backdrop-vignette {',
+            '  position: absolute;',
+            '  top: 0; left: 0; right: 0; bottom: 0;',
+            '  background: linear-gradient(180deg, rgba(13,14,17,0.35) 0%, rgba(13,14,17,0.55) 55%, rgba(13,14,17,0.96) 100%),',
+            '              radial-gradient(ellipse at 70% 25%, rgba(13,14,17,0.08) 0%, rgba(13,14,17,0.72) 100%);',
+            '}',
+            '.full-start__background, .full-start-new__background {',
+            '  transition: opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1) !important;',
+            '  will-change: opacity;',
+            '}'
+        ].join('\n');
+        (document.head || document.documentElement).appendChild(style);
+    }
 
     function setting(name) {
         return Lampa.Storage && Lampa.Storage.field && Lampa.Storage.field(name);
     }
 
-    function updateBackgroundMode(mode) {
-        document.documentElement.setAttribute(backgroundAttribute,
-            mode === 'black' || mode === 'gradient' ? mode : 'picture');
-    }
-
-    function addBackgroundSetting() {
-        if (!Lampa.SettingsApi || !Lampa.SettingsApi.addParam) return;
-        var translations = {
-            ru: ['Фон карточки', 'Чёрный', 'Кадр', 'Градиент'],
-            uk: ['Тло картки', 'Чорний', 'Кадр', 'Градієнт'],
-            en: ['Card background', 'Black', 'Backdrop', 'Gradient']
+    function catalogParams(card) {
+        if (!card) return null;
+        var type = card.media_type || card.type;
+        if (card.profile_path || type === 'person' || type === 'collection') return null;
+        if (type !== 'movie' && type !== 'tv') {
+            type = card.first_air_date || card.original_name || card.number_of_seasons || (!card.title && card.name) ? 'tv' : 'movie';
+        }
+        return {
+            id: card.id,
+            method: type,
+            source: card.source || 'tmdb',
+            component: 'full',
+            card: card
         };
-        var text = translations[languageCode(setting('language'))] || translations.ru;
-        Lampa.SettingsApi.addParam({
-            component: 'interface',
-            param: {
-                name: backgroundSetting, type: 'select', default: 'picture',
-                values: { black: text[1], picture: text[2], gradient: text[3] }
-            },
-            field: { name: text[0] },
-            onChange: updateBackgroundMode
-        });
-        updateBackgroundMode(setting(backgroundSetting));
     }
 
-    function previewUrl(card, size) {
-        size = size || 'w1280';
-        return assetUrl(card.backdrop_path, size) || assetUrl(card.background_image, size);
+    function cardKey(params) {
+        var permit = Lampa.Account && Lampa.Account.Permit;
+        if (!params || permit && permit.child || !/^[1-9]\d*$/.test(String(params.id))) return '';
+        var source = params.source || 'tmdb';
+        if ((source !== 'tmdb' && source !== 'cub') ||
+            (params.method !== 'movie' && params.method !== 'tv')) return '';
+        return [source, params.method, params.id, setting('tmdb_lang'), setting('language'),
+            permit && permit.profile && permit.profile.id].join('|');
+    }
+
+    function preparedFor(params) {
+        return prepared && Date.now() - prepared.started < preloadLifetime &&
+            prepared.key === cardKey(params) ? prepared : null;
+    }
+
+    function previewUrl(card) {
+        if (!card) return '';
+        return assetUrl(card.backdrop_path, 'w1280') || assetUrl(card.background_image, 'w1280');
+    }
+
+    function decodeImage(image, callback) {
+        if (!image) {
+            if (callback) callback();
+            return;
+        }
+        function done() {
+            image._cpDecoded = true;
+            if (callback) callback();
+        }
+        if (image._cpDecoded) {
+            done();
+            return;
+        }
+        if (typeof image.decode === 'function') {
+            image.decode().then(done, done);
+        } else if (image.complete) {
+            done();
+        } else {
+            image.addEventListener('load', done, { once: true });
+            image.addEventListener('error', done, { once: true });
+        }
     }
 
     function startPreview(url) {
         if (!url) return null;
         var image = new Image();
+        image.decoding = 'async';
         image.src = url;
+        decodeImage(image);
         return image;
+    }
+
+    function stillFocused(target, card) {
+        return document.documentElement.contains(target) && target.card_data === card &&
+            (target.classList.contains('focus') || target.classList.contains('hover'));
+    }
+
+    function prepareFocusedCard(event) {
+        clearTimeout(focusTimer);
+        var target = event.target;
+        var card = target && target.card_data;
+        if (!card || !target.classList || target.classList.contains('card--disabled') ||
+            target.classList.contains('card--collection') || card.adult || card.blocked || card.lgbt) return;
+        var params = catalogParams(card);
+        var key = cardKey(params);
+        if (!key) return;
+
+        focusTimer = setTimeout(function () {
+            if (!stillFocused(target, card) || key !== cardKey(params)) return;
+            var recent = preparedFor(params);
+            if (recent && !recent.used) return;
+
+            prepared = {
+                key: key, params: params, target: target, started: Date.now(),
+                preview: recent && recent.preview || startPreview(previewUrl(card))
+            };
+            warmCardData(prepared);
+        }, 120);
+    }
+
+    function warmCardData(entry) {
+        if (typeof nativeFull !== 'function' || warming || entry.used) return;
+        warming = entry;
+
+        function finish(data) {
+            if (warming !== entry) return;
+            warming = null;
+            var movie = data && data.movie;
+            if (movie && !movie.blocked && !movie.adult && !movie.lgbt && entry.key === cardKey(entry.params)) {
+                entry.data = data;
+                if (prepared === entry) {
+                    if (!entry.preview) entry.preview = startPreview(previewUrl(movie));
+                    var cinema = Lampa.CinemaCard;
+                    if (cinema && typeof cinema.preferredLogoUrl === 'function') {
+                        entry.logo = startPreview(cinema.preferredLogoUrl(movie));
+                    }
+                }
+            }
+            if (entry.open) entry.open(entry.data);
+            if (prepared && prepared !== entry && preparedFor(prepared.params) &&
+                stillFocused(prepared.target, prepared.params.card)) {
+                warmCardData(prepared);
+            }
+        }
+
+        try {
+            nativeFull.call(api, entry.params, finish, function () { finish(); });
+        } catch (error) {
+            finish();
+        }
+    }
+
+    function openPreparedCard(params, oncomplete) {
+        var entry = params && params.component === 'full' && !params.langs &&
+            !params.query && !(params.page > 1) && preparedFor(params);
+        if (!entry || entry.used || typeof oncomplete !== 'function') return nativeFull.apply(this, arguments);
+        entry.used = true;
+        if (!entry.data && warming !== entry) return nativeFull.apply(this, arguments);
+
+        var receiver = this;
+        var args = arguments;
+        var ready = entry.data;
+        // Wait for the already in-flight request instead of firing a duplicate one.
+        var deadline = setTimeout(function () {
+            if (entry.open) entry.open(entry.data);
+        }, ready ? 0 : 2500);
+
+        entry.open = function (data) {
+            clearTimeout(deadline);
+            entry.open = null;
+            entry.data = null;
+            if (data && entry.key === cardKey(params)) oncomplete(data);
+            else nativeFull.apply(receiver, args);
+        };
+    }
+
+    function unwrapElement(el) {
+        if (!el) return null;
+        if (el.nodeType === 1) return el;
+        if (el[0] && el[0].nodeType === 1) return el[0];
+        return null;
+    }
+
+    function nextFrames(fn) {
+        requestAnimationFrame(function () {
+            requestAnimationFrame(fn);
+        });
+    }
+
+    function showBackdropCurtain(activityEl, card, params) {
+        if (!activityEl) return;
+        removeCurtain(activeCurtain, true);
+
+        var entry = preparedFor(params || catalogParams(card));
+        var url = (entry && entry.preview && entry.preview.src) || previewUrl(card);
+        if (!url) return;
+
+        activityEl.classList.add('cp-has-curtain');
+
+        var curtain = document.createElement('div');
+        curtain.className = 'cp-backdrop-curtain';
+
+        var img = document.createElement('img');
+        img.className = 'cp-backdrop-img';
+        img.decoding = 'async';
+        img.alt = '';
+
+        var vignette = document.createElement('div');
+        vignette.className = 'cp-backdrop-vignette';
+
+        curtain.appendChild(img);
+        curtain.appendChild(vignette);
+        activityEl.appendChild(curtain);
+
+        var state = {
+            activityEl: activityEl,
+            el: curtain,
+            leaving: false,
+            timer: setTimeout(function () { fadeOutCurtain(state); }, 4500)
+        };
+        activeCurtain = state;
+
+        nextFrames(function () {
+            if (state.leaving) return;
+            curtain.classList.add('cp-visible');
+        });
+
+        function revealImage() {
+            if (state.leaving) return;
+            nextFrames(function () {
+                if (!state.leaving) img.classList.add('cp-ready');
+            });
+        }
+
+        img.src = url;
+        decodeImage(img, revealImage);
+    }
+
+    function fadeOutCurtain(state) {
+        if (!state || state.leaving) return;
+        state.leaving = true;
+        clearTimeout(state.timer);
+
+        state.el.classList.add('cp-leaving');
+        if (state.activityEl) state.activityEl.classList.remove('cp-has-curtain');
+
+        setTimeout(function () {
+            removeCurtain(state, false);
+        }, 520);
+    }
+
+    function removeCurtain(state, immediate) {
+        if (!state) return;
+        clearTimeout(state.timer);
+        state.leaving = true;
+        if (state.activityEl) state.activityEl.classList.remove('cp-has-curtain');
+        if (state.el && state.el.parentNode) state.el.parentNode.removeChild(state.el);
+        if (activeCurtain === state) activeCurtain = null;
+        if (immediate) return;
+    }
+
+    function onActivityEvent(event) {
+        if (!event) return;
+        var obj = event.object || {};
+        var act = obj.activity || obj;
+        var el = unwrapElement(act && typeof act.render === 'function' ? act.render(true) : null);
+
+        if (event.type === 'start' && (event.component === 'full' || obj.component === 'full')) {
+            var card = obj.card || obj.movie || (act && act.card);
+            showBackdropCurtain(el, card, obj);
+        } else if (event.type === 'destroy' || event.type === 'backward') {
+            if (activeCurtain && (!el || activeCurtain.activityEl === el)) {
+                fadeOutCurtain(activeCurtain);
+            }
+        }
+    }
+
+    function onFullEvent(event) {
+        if (!event || event.type !== 'complite' || !activeCurtain) return;
+        var state = activeCurtain;
+        var act = event.object && event.object.activity;
+        var el = unwrapElement(act && typeof act.render === 'function' ? act.render(true) : null);
+        if (el && state.activityEl !== el) return;
+
+        var bg = state.activityEl && state.activityEl.querySelector('.full-start__background, .full-start-new__background, img[src*="backdrop"]');
+        if (bg && bg.tagName === 'IMG' && !bg.complete) {
+            var settled = false;
+            var fallback = setTimeout(function () {
+                if (!settled) { settled = true; fadeOutCurtain(state); }
+            }, 350);
+            decodeImage(bg, function () {
+                if (!settled) {
+                    settled = true;
+                    clearTimeout(fallback);
+                    fadeOutCurtain(state);
+                }
+            });
+        } else {
+            nextFrames(function () { fadeOutCurtain(state); });
+        }
     }
 
     function assetUrl(path, size) {
@@ -222,397 +384,4 @@
         return '';
     }
 
-    function bestBackdropPaths(card) {
-        var pictures = card.images && card.images.backdrops;
-        var paths = [card.backdrop_path, card.background_image];
-        if (Array.isArray(pictures)) {
-            var wide = pictures.filter(function (picture) {
-                return picture && picture.file_path && Number(picture.aspect_ratio) >= 1.5;
-            }).sort(function (a, b) {
-                return Number(b.vote_average || 0) - Number(a.vote_average || 0) || b.width - a.width;
-            });
-            var clean = wide.filter(function (picture) {
-                return !picture.iso_639_1 && Number(picture.width) >= 1600;
-            });
-            paths = clean.slice(0, 2).map(function (picture) { return picture.file_path; }).concat(paths);
-            if (wide.length) paths.push(wide[0].file_path);
-        }
-        return paths.filter(function (path, index) { return path && paths.indexOf(path) === index; });
-    }
-
-    function backdropChoices(card) {
-        var choices = [];
-        var size = window.innerWidth >= 1000 ? 'original' : 'w1280';
-        bestBackdropPaths(card).forEach(function (path) {
-            [size, 'w1280', 'w780'].forEach(function (width) {
-                var url = assetUrl(path, width);
-                if (url && choices.indexOf(url) === -1) choices.push(url);
-            });
-        });
-        return choices;
-    }
-
-    function languageCode(value) {
-        return String(value || '').toLowerCase().split(/[-_]/)[0];
-    }
-
-    function logoChoices(card, language) {
-        var logos = card.images && card.images.logos;
-        if (!Array.isArray(logos)) return [];
-
-        var original = languageCode(card.original_language);
-        var languages = [language, original, 'en'].filter(function (code, index, list) {
-            return code && list.indexOf(code) === index;
-        });
-        return logos.filter(function (logo) {
-            return logo && logo.file_path && languages.indexOf(languageCode(logo.iso_639_1)) !== -1;
-        }).sort(function (a, b) {
-            return languages.indexOf(languageCode(a.iso_639_1)) - languages.indexOf(languageCode(b.iso_639_1)) ||
-                Number(b.vote_average || 0) - Number(a.vote_average || 0) ||
-                Number(b.width || 0) - Number(a.width || 0);
-        }).slice(0, 4).map(function (logo) {
-            return { url: assetUrl(logo.file_path, 'original'), language: languageCode(logo.iso_639_1) };
-        });
-    }
-
-    function mediaLanguage(card) {
-        return languageCode(setting('tmdb_lang')) || languageCode(card.original_language) || 'en';
-    }
-
-    function titleType(card) {
-        // TMDB uses separate IDs for some film and television genres.
-        var types = {
-            878: 'future', 10765: 'future', 14: 'future',
-            27: 'horror', 53: 'suspense', 9648: 'suspense', 80: 'suspense',
-            28: 'suspense', 10759: 'suspense',
-            36: 'classic', 18: 'classic', 10749: 'classic', 37: 'classic',
-            16: 'family', 35: 'family', 10751: 'family', 10762: 'family'
-        };
-        var genres = Array.isArray(card.genres) && card.genres.length ? card.genres : card.genre_ids;
-        if (!Array.isArray(genres)) return 'default';
-        var choices = genres.map(function (genre) { return genre && types[Number(genre.id || genre)]; });
-        return choices.indexOf('horror') !== -1 ? 'horror' :
-            choices.indexOf('future') !== -1 ? 'future' :
-            choices.filter(Boolean)[0] || 'default';
-    }
-
-    function loadFirstImage(image, choices, done) {
-        var index = 0;
-        function next() {
-            var url;
-            while (index < choices.length && !url) url = choices[index++];
-            if (!url) {
-                image.onerror = image.onload = null;
-                done(-1);
-                return;
-            }
-            image.src = url;
-        }
-        image.onerror = next;
-        image.onload = function () {
-            image.onerror = image.onload = null;
-            done(index - 1);
-        };
-        next();
-    }
-
-    function nodeOf(value) {
-        return value && (value.nodeType === 1 ? value : value[0]);
-    }
-
-    function activityNode(object) {
-        var activity = object && object.activity;
-        return activity && typeof activity.render === 'function' ? nodeOf(activity.render(true)) : null;
-    }
-
-    function preloadedAssets(object, card) {
-        return Lampa.CinemaPreload && Lampa.CinemaPreload.assetsFor(object, card);
-    }
-
-    function watchImage(image, callback) {
-        if (!image) return callback(null);
-        function detach() {
-            image.removeEventListener('load', ready);
-            image.removeEventListener('error', ready);
-        }
-        function ready() {
-            detach();
-            callback(image.naturalWidth ? image : null);
-        }
-        if (image.complete) ready();
-        else {
-            image.addEventListener('load', ready);
-            image.addEventListener('error', ready);
-        }
-        return detach;
-    }
-
-    function createSurface() {
-        var art = document.createElement('div');
-        art.className = 'lampa-cinema-art';
-        art.setAttribute('aria-hidden', 'true');
-        var ambient = document.createElement('div');
-        ambient.className = 'lampa-cinema-ambient';
-        ambient.setAttribute('aria-hidden', 'true');
-        var canvas = document.createElement('canvas');
-        canvas.width = 4;
-        canvas.height = 3;
-        ambient.appendChild(canvas);
-        return { art: art, ambient: ambient, canvas: canvas };
-    }
-
-    function mountSurface(root, surface) {
-        root.classList.add('lampa-cinema-surface');
-        root.insertBefore(surface.ambient, root.firstChild);
-        root.insertBefore(surface.art, root.firstChild);
-    }
-
-    function removeElement(element) {
-        if (element && element.parentNode) element.parentNode.removeChild(element);
-    }
-
-    function paintBackdrop(surface, image, animate) {
-        if (surface.url === image.src) return;
-        var previous = surface.photo;
-        var photo = document.createElement('div');
-        photo.className = animate ? 'lampa-cinema-photo lampa-cinema-photo--appear' : 'lampa-cinema-photo';
-        photo.style.backgroundImage = 'url(' + JSON.stringify(image.src) + ')';
-        surface.art.appendChild(photo);
-        surface.art.classList.add('lampa-cinema-art-ready');
-        surface.photo = photo;
-        surface.url = image.src;
-        if (previous) {
-            if (animate) setTimeout(function () { removeElement(previous); }, 400);
-            else removeElement(previous);
-        }
-
-        // Display the tiny canvas directly, including for images without CORS permission.
-        try {
-            var canvas = surface.canvas;
-            var context = canvas.getContext('2d');
-            if (context) {
-                context.drawImage(image, 0, 0, canvas.width, canvas.height);
-                surface.ambient.classList.add('lampa-cinema-ambient--ready');
-            }
-        } catch (error) {
-            // The CSS gradient is the fallback on devices without canvas support.
-        }
-    }
-
-    function closeOpening(slide, opening) {
-        if (slide[openingKey] !== opening) return;
-        clearTimeout(opening.timer);
-        if (opening.observer) opening.observer.disconnect();
-        if (opening.detachPreview) opening.detachPreview();
-        removeElement(opening.element);
-        slide.classList.remove('lampa-cinema-activity');
-        delete slide[openingKey];
-    }
-
-    function scheduleOpeningClose(slide, opening) {
-        if (opening.timer) return;
-        opening.timer = setTimeout(function () {
-            opening.timer = null;
-            if (!slide.classList.contains('activity--load')) closeOpening(slide, opening);
-        }, 380);
-    }
-
-    function warmLogo(card, image) {
-        var url = Lampa.CinemaCard.preferredLogoUrl(card);
-        return image && image.src === url ? image : startPreview(url);
-    }
-
-    function handleCinemaActivity(event) {
-        if (!event || event.component !== 'full') return;
-        var object = event.object;
-        var slide = activityNode(object);
-        if (!slide || !slide.querySelector('.activity__body')) return;
-
-        var existing = slide[openingKey];
-        if (event.type === 'destroy' || event.type === 'archive') {
-            if (existing) closeOpening(slide, existing);
-            return;
-        }
-        var startedLoading = (event.type === 'create' || event.type === 'start') &&
-            slide.classList.contains('activity--load');
-        if (existing || (event.type !== 'init' && !startedLoading)) return;
-
-        var layer = document.createElement('div');
-        layer.className = 'lampa-cinema-opening';
-        var surface = createSurface();
-        mountSurface(layer, surface);
-        var progress = document.createElement('div');
-        progress.className = 'lampa-cinema-progress';
-        progress.setAttribute('role', 'progressbar');
-        var labels = { ru: 'Открывается карточка', uk: 'Відкривається картка', en: 'Opening card' };
-        progress.setAttribute('aria-label', labels[languageCode(setting('language'))] || labels.en);
-        layer.appendChild(progress);
-        var opening = slide[openingKey] = { element: layer, surface: surface };
-        slide.insertBefore(layer, slide.firstChild);
-        slide.classList.add('lampa-cinema-activity');
-
-        if (typeof MutationObserver === 'function') {
-            opening.observer = new MutationObserver(function () {
-                if (!slide.classList.contains('activity--load') && slide.classList.contains('activity--active')) {
-                    scheduleOpeningClose(slide, opening);
-                }
-            });
-            opening.observer.observe(slide, { attributes: true, attributeFilter: ['class'] });
-        }
-
-        var card = object && (object.card || object.movie);
-        var permit = Lampa.Account && Lampa.Account.Permit;
-        if (!card || card.blocked || card.adult || card.lgbt || (permit && permit.child)) return;
-
-        var assets = preloadedAssets(object, card);
-        opening.paths = [card.backdrop_path, card.background_image];
-        opening.preview = assets && assets.preview || startPreview(previewUrl(card, 'w780'));
-        opening.logo = warmLogo(card, assets && assets.logo);
-        opening.detachPreview = watchImage(opening.preview, function (image) {
-            if (image && slide[openingKey] === opening) paintBackdrop(surface, image, true);
-        });
-    }
-
-    function sameFrameUpgrades(paths, displayed) {
-        // A sharp version of the same composition can replace the preview without a scene cut.
-        for (var i = 0; i < paths.length; i++) {
-            var path = paths[i];
-            var medium = assetUrl(path, 'w1280');
-            if (displayed !== medium && displayed !== assetUrl(path, 'w780')) continue;
-            var original = window.innerWidth >= 1000 ? assetUrl(path, 'original') : '';
-            return [original, medium].filter(function (url, index, list) {
-                return url && url !== displayed && list.indexOf(url) === index;
-            });
-        }
-        return [];
-    }
-
-    function removePreviousCard(state) {
-        removeElement(state.surface.art);
-        removeElement(state.surface.ambient);
-        if (state.titleSlot && state.titleSlot.parentNode) {
-            state.titleSlot.parentNode.insertBefore(state.title, state.titleSlot);
-            removeElement(state.titleSlot);
-        }
-        state.hero.classList.remove('lampa-cinema-hero');
-        state.title.classList.remove('lampa-cinema-title', 'lampa-cinema-title-long');
-        state.title.removeAttribute('data-cinema-type');
-    }
-
-    function renderCinemaCard(event) {
-        if (!event) return;
-        var object = event.object;
-        var card = (event.data && event.data.movie) || (object && object.card);
-        if (!card) return;
-
-        var slide = activityNode(object);
-        var opening = slide && slide[openingKey];
-        if (event.type === 'start') {
-            if (opening) {
-                var logoAssets = preloadedAssets(object, card);
-                opening.logo = warmLogo(card, (logoAssets && logoAssets.logo) || opening.logo);
-            }
-            return;
-        }
-        if (event.type !== 'complite' && event.type !== 'complete') return;
-
-        var root = nodeOf(event.body);
-        var hero = root && (root.querySelector('.full-start-new') || root.querySelector('.full-start'));
-        var title = hero && hero.querySelector('.full-start-new__title, .full-start__title');
-        if (!title) return;
-
-        var previous = root[stateKey];
-        if (previous && previous.hero === hero && previous.card === card) return;
-        if (previous) removePreviousCard(previous);
-
-        var surface = createSurface();
-        var state = root[stateKey] = { card: card, hero: hero, title: title, surface: surface };
-        var stock = root.querySelector('.full-start__background');
-        surface.art.classList.add('full-start__background');
-        if (stock && stock.classList.contains('dim')) surface.art.classList.add('dim');
-        mountSurface(root, surface);
-        root.classList.add('lampa-cinema-page');
-        hero.classList.add('lampa-cinema-hero');
-        title.classList.add('lampa-cinema-title');
-        title.setAttribute('data-cinema-type', titleType(card));
-        if (title.textContent.trim().length > 38) title.classList.add('lampa-cinema-title-long');
-
-        if (opening) {
-            // Keep the same backdrop under the native body's opacity transition.
-            opening.element.classList.add('lampa-cinema-opening--handoff');
-            scheduleOpeningClose(slide, opening);
-        }
-
-        var assets = preloadedAssets(object, card);
-        var language = mediaLanguage(card);
-        var logos = logoChoices(card, language);
-        var preview = (opening && opening.preview) || (assets && assets.preview);
-        if (!preview && opening) preview = startPreview(previewUrl(card, 'w780'));
-        var backdrops = backdropChoices(card);
-        if (!preview && previewUrl(card) !== backdrops[0]) preview = startPreview(previewUrl(card));
-
-        function current() {
-            return root[stateKey] === state && root.contains(hero) && hero.contains(title);
-        }
-
-        if (logos.length) {
-            var slot = state.titleSlot = document.createElement('div');
-            slot.className = 'lampa-cinema-title-slot';
-            title.parentNode.insertBefore(slot, title);
-            slot.appendChild(title);
-            var preferred = (opening && opening.logo) || (assets && assets.logo);
-
-            function showLogo(image, info) {
-                if (!current()) return;
-                var brand = document.createElement('div');
-                brand.className = 'lampa-cinema-brand';
-                brand.setAttribute('aria-hidden', 'true');
-                image.className = 'lampa-cinema-logo';
-                image.alt = '';
-                brand.appendChild(image);
-                var text = title.textContent.trim();
-                var originalTitle = card.original_title || card.original_name;
-                if (info.language !== language && text !== originalTitle) {
-                    var caption = document.createElement('div');
-                    caption.className = 'lampa-cinema-title-caption';
-                    caption.textContent = text;
-                    brand.classList.add('lampa-cinema-brand--translated');
-                    brand.appendChild(caption);
-                }
-                slot.appendChild(brand);
-                slot.classList.add('lampa-cinema-title-slot--branded');
-            }
-
-            function loadLogo(from) {
-                var logo = new Image();
-                loadFirstImage(logo, logos.slice(from).map(function (item) { return item.url; }), function (index) {
-                    if (index !== -1) showLogo(logo, logos[from + index]);
-                });
-            }
-
-            if (preferred && preferred.src === logos[0].url) {
-                watchImage(preferred, function (image) {
-                    if (!current()) return;
-                    if (image) showLogo(image.cloneNode(false), logos[0]);
-                    else loadLogo(1);
-                });
-            } else loadLogo(0);
-        }
-
-        watchImage(preview, function (image) {
-            if (!current()) return;
-            var choices = backdrops;
-            if (image) {
-                var alreadyVisible = opening && opening.surface.url === image.src;
-                paintBackdrop(surface, image, !alreadyVisible);
-                var paths = bestBackdropPaths(card).concat(opening && opening.paths || []);
-                choices = sameFrameUpgrades(paths, image.src);
-            }
-            if (!choices.length) return;
-            var backdrop = new Image();
-            loadFirstImage(backdrop, choices, function (index) {
-                if (index !== -1 && current()) paintBackdrop(surface, backdrop, true);
-            });
-        });
-    }
 }());
