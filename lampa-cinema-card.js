@@ -5,25 +5,45 @@
     var Lampa = window.Lampa;
     var styleId = 'lampa-cinema-card-style';
     var stateKey = '__lampaCinemaCard';
+    var backgroundSetting = 'lampa_cinema_background';
+    var backgroundAttribute = 'data-lampa-cinema-background';
     if (!Lampa || !Lampa.Listener || document.getElementById(styleId)) return;
 
     var style = document.createElement('style');
     style.id = styleId;
     style.textContent = [
         '.lampa-cinema-page { position: relative; z-index: 0; }',
-        '.lampa-cinema-page > .lampa-cinema-art {',
-        '    position: absolute; z-index: -1; top: -4em; right: 0; bottom: auto; left: 0;',
-        '    width: 100%; height: 100vh; height: 100dvh; overflow: hidden; opacity: 1;',
-        '    background: #111821 center 42% / cover no-repeat;',
-        '    -webkit-mask-image: none; mask-image: none; pointer-events: none;',
-        '    transition: opacity .22s ease-out;',
+        '.lampa-cinema-page > .lampa-cinema-art, .lampa-cinema-page > .lampa-cinema-ambient {',
+        '    position: absolute; top: -4em; right: 0; bottom: auto; left: 0;',
+        '    width: 100%; height: 100vh; height: 100dvh; overflow: hidden; pointer-events: none;',
         '}',
-        '.lampa-cinema-page > .lampa-cinema-art.dim { opacity: .18; }',
-        '.lampa-cinema-art:after {',
+        '.lampa-cinema-page > .lampa-cinema-ambient {',
+        '    z-index: -2; background: linear-gradient(145deg, #202d3b, #0c1119 68%, #080c12);',
+        '}',
+        '.lampa-cinema-ambient canvas { width: 100%; height: 100%; display: block; image-rendering: auto; }',
+        '.lampa-cinema-ambient:after, .lampa-cinema-art:after {',
         '    content: ""; position: absolute; top: 0; right: 0; bottom: 0; left: 0;',
-        '    background: linear-gradient(180deg, rgba(12,17,25,.52), transparent 23%, transparent 41%, rgba(12,17,25,.56) 68%, #0c1119 100%),',
+        '}',
+        '.lampa-cinema-ambient:after {',
+        '    background: linear-gradient(148deg, rgba(8,12,18,.55), rgba(8,12,18,.72) 62%, rgba(8,12,18,.95));',
+        '}',
+        '.lampa-cinema-page > .lampa-cinema-art {',
+        '    z-index: -1; opacity: 1; background: center 42% / cover no-repeat;',
+        '    -webkit-mask-image: linear-gradient(#000 72%, transparent 100%);',
+        '    mask-image: linear-gradient(#000 72%, transparent 100%);',
+        '    transition: opacity .28s ease-out;',
+        '}',
+        '.lampa-cinema-page > .lampa-cinema-art.dim { opacity: 0; }',
+        '.lampa-cinema-art:after {',
+        '    background: linear-gradient(180deg, rgba(12,17,25,.52), transparent 23%, transparent 41%, rgba(12,17,25,.56) 68%, rgba(12,17,25,.84) 100%),',
         '                linear-gradient(90deg, rgba(12,17,25,.72), rgba(12,17,25,.23) 43%, transparent 75%);',
         '}',
+        '.lampa-cinema-page > .lampa-cinema-art:not(.lampa-cinema-art-ready),',
+        '[data-lampa-cinema-background="gradient"] .lampa-cinema-page > .lampa-cinema-art,',
+        '[data-lampa-cinema-background="black"] .lampa-cinema-page > .lampa-cinema-art { visibility: hidden; }',
+        '[data-lampa-cinema-background="black"] .lampa-cinema-page > .lampa-cinema-ambient { background: #000; }',
+        '[data-lampa-cinema-background="black"] .lampa-cinema-ambient canvas,',
+        '[data-lampa-cinema-background="black"] .lampa-cinema-ambient:after { display: none; }',
         '.lampa-cinema-page > .full-start__background:not(.lampa-cinema-art) { visibility: hidden; }',
         '.lampa-cinema-page > .scroll.scroll--mask { -webkit-mask-image: none; mask-image: none; }',
         '.lampa-cinema-page .lampa-cinema-hero {',
@@ -97,6 +117,58 @@
 
     // The full-card event runs after Lampa has built its native details and controls.
     Lampa.Listener.follow('full', renderCinemaCard);
+    Lampa.CinemaCard = {
+        preferredLogoUrl: function (card) {
+            var choices = logoChoices(card, mediaLanguage(card));
+            return choices.length ? choices[0].url : '';
+        }
+    };
+
+    updateBackgroundMode(setting(backgroundSetting));
+    if (window.appready) addBackgroundSetting();
+    else Lampa.Listener.follow('app', function (event) {
+        if (event.type === 'ready') addBackgroundSetting();
+    });
+
+    function setting(name) {
+        return Lampa.Storage && Lampa.Storage.field && Lampa.Storage.field(name);
+    }
+
+    function updateBackgroundMode(mode) {
+        document.documentElement.setAttribute(backgroundAttribute,
+            mode === 'black' || mode === 'gradient' ? mode : 'picture');
+    }
+
+    function addBackgroundSetting() {
+        if (!Lampa.SettingsApi || !Lampa.SettingsApi.addParam) return;
+        var translations = {
+            ru: ['Фон карточки', 'Чёрный', 'Кадр', 'Градиент'],
+            uk: ['Тло картки', 'Чорний', 'Кадр', 'Градієнт'],
+            en: ['Card background', 'Black', 'Backdrop', 'Gradient']
+        };
+        var text = translations[languageCode(setting('language'))] || translations.ru;
+        Lampa.SettingsApi.addParam({
+            component: 'interface',
+            param: {
+                name: backgroundSetting, type: 'select', default: 'picture',
+                values: { black: text[1], picture: text[2], gradient: text[3] }
+            },
+            field: { name: text[0] },
+            onChange: updateBackgroundMode
+        });
+        updateBackgroundMode(setting(backgroundSetting));
+    }
+
+    function previewUrl(card) {
+        return assetUrl(card.backdrop_path, 'w1280') || assetUrl(card.background_image, 'w1280');
+    }
+
+    function startPreview(url) {
+        if (!url) return null;
+        var image = new Image();
+        image.src = url;
+        return image;
+    }
 
     function assetUrl(path, size) {
         if (typeof path !== 'string' || !path) return '';
@@ -160,6 +232,10 @@
         });
     }
 
+    function mediaLanguage(card) {
+        return languageCode(setting('tmdb_lang')) || languageCode(card.original_language) || 'en';
+    }
+
     function titleType(card) {
         // TMDB uses separate IDs for some film and television genres.
         var types = {
@@ -199,6 +275,7 @@
 
     function removePreviousCard(state) {
         if (state.art.parentNode) state.art.parentNode.removeChild(state.art);
+        if (state.ambient.parentNode) state.ambient.parentNode.removeChild(state.ambient);
         if (state.logo && state.logo.parentNode) state.logo.parentNode.removeChild(state.logo);
         state.hero.classList.remove('lampa-cinema-hero');
         state.title.classList.remove('lampa-cinema-title', 'lampa-cinema-title-long',
@@ -225,40 +302,103 @@
         var art = document.createElement('div');
         art.className = 'lampa-cinema-art full-start__background';
         art.setAttribute('aria-hidden', 'true');
-        var state = root[stateKey] = { card: card, hero: hero, title: title, art: art };
-        if (!backdrops.length) return;
+        var ambient = document.createElement('div');
+        ambient.className = 'lampa-cinema-ambient';
+        ambient.setAttribute('aria-hidden', 'true');
+        var colorMap = document.createElement('canvas');
+        colorMap.width = 4;
+        colorMap.height = 3;
+        ambient.appendChild(colorMap);
+        var state = root[stateKey] = { card: card, hero: hero, title: title, art: art, ambient: ambient };
 
-        var background = new Image();
-        loadFirstImage(background, backdrops, function (index) {
-            if (index === -1 || root[stateKey] !== state || !root.contains(hero)) return;
+        var prefetched = Lampa.CinemaPreload && Lampa.CinemaPreload.assetsFor(event.object, card);
+        var preview = prefetched && prefetched.preview;
+        var firstUrl = previewUrl(card);
+        var language = mediaLanguage(card);
+        var logos = logoChoices(card, language);
 
+        function currentCard() {
+            return root[stateKey] === state && root.contains(hero) && hero.contains(title);
+        }
+
+        function mountLogo() {
+            if (!art.parentNode || !state.logo || !state.logoInfo || state.logo.parentNode) return;
+            title.parentNode.insertBefore(state.logo, title);
+            var originalTitle = card.original_title || card.original_name;
+            var showTranslation = state.logoInfo.language !== language && title.textContent.trim() !== originalTitle;
+            title.classList.add(showTranslation ? 'lampa-cinema-title-translation' : 'lampa-cinema-title-accessible');
+        }
+
+        function showBackdrop(image) {
+            art.style.backgroundImage = 'url(' + JSON.stringify(image.src) + ')';
+            art.classList.add('lampa-cinema-art-ready');
+            // Stretch a tiny canvas to blend the colors. Drawing requires no pixel readback or CORS.
+            try {
+                var context = colorMap.getContext('2d');
+                if (context) context.drawImage(image, 0, 0, colorMap.width, colorMap.height);
+            } catch (error) {
+                // The ambient CSS remains visible on devices without canvas support.
+            }
+        }
+
+        function mountScene() {
             // Reuse the native background's scroll-dimming hook.
             var stockBackground = root.querySelector('.full-start__background');
             if (stockBackground && stockBackground.classList.contains('dim')) art.classList.add('dim');
-            art.style.backgroundImage = 'url(' + JSON.stringify(background.src) + ')';
+            root.insertBefore(ambient, root.firstChild);
             root.insertBefore(art, root.firstChild);
             root.classList.add('lampa-cinema-page');
             hero.classList.add('lampa-cinema-hero');
             title.classList.add('lampa-cinema-title');
             title.setAttribute('data-cinema-type', titleType(card));
             if (title.textContent.trim().length > 38) title.classList.add('lampa-cinema-title-long');
+            mountLogo();
+        }
 
-            var language = languageCode(Lampa.Storage && Lampa.Storage.field && Lampa.Storage.field('tmdb_lang')) ||
-                languageCode(card.original_language) || 'en';
-            var logos = logoChoices(card, language);
-            if (!logos.length) return;
+        function loadFinalBackdrop(displayed) {
+            var position = backdrops.indexOf(displayed);
+            var choices = position < 0 ? backdrops : backdrops.slice(0, position);
+            if (!choices.length) return;
+            var background = new Image();
+            loadFirstImage(background, choices, function (index) {
+                if (index !== -1 && currentCard()) showBackdrop(background);
+            });
+        }
 
-            var logo = new Image();
+        if (logos.length) {
+            var warmLogo = prefetched && prefetched.logo;
+            var readyLogo = warmLogo && warmLogo.complete && warmLogo.naturalWidth && warmLogo.src === logos[0].url;
+            var logo = readyLogo ? warmLogo.cloneNode(false) : new Image();
             logo.className = 'lampa-cinema-logo';
             logo.alt = '';
             state.logo = logo;
-            loadFirstImage(logo, logos.map(function (item) { return item.url; }), function (selected) {
-                if (selected === -1 || root[stateKey] !== state || !hero.contains(title)) return;
-                title.parentNode.insertBefore(logo, title);
-                var originalTitle = card.original_title || card.original_name;
-                var showTranslation = logos[selected].language !== language && title.textContent.trim() !== originalTitle;
-                title.classList.add(showTranslation ? 'lampa-cinema-title-translation' : 'lampa-cinema-title-accessible');
+            if (readyLogo) state.logoInfo = logos[0];
+            else loadFirstImage(logo, logos.map(function (item) { return item.url; }), function (selected) {
+                if (selected !== -1 && currentCard()) {
+                    state.logoInfo = logos[selected];
+                    mountLogo();
+                }
             });
-        });
+        }
+
+        mountScene();
+        if (!backdrops.length) return;
+        if (!preview && firstUrl !== backdrops[0]) preview = startPreview(firstUrl);
+        if (!preview) return loadFinalBackdrop('');
+
+        function previewFinished() {
+            preview.removeEventListener('load', previewFinished);
+            preview.removeEventListener('error', previewFinished);
+            if (!currentCard()) return;
+            var displayed = preview.naturalWidth ? preview.src : '';
+            if (displayed) showBackdrop(preview);
+            loadFinalBackdrop(displayed);
+        }
+
+        if (preview.complete) previewFinished();
+        else {
+            preview.addEventListener('load', previewFinished);
+            preview.addEventListener('error', previewFinished);
+        }
     }
 }());
