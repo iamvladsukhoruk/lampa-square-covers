@@ -1,4 +1,4 @@
-// Lampa TV — киноэкран с фоном, который затемняется при прокрутке.
+// Lampa TV — киноэкран с цветовым градиентом и затемнением последних двух экранов.
 (function () {
     'use strict';
 
@@ -31,7 +31,8 @@
         '    content: ""; position: absolute; top: 0; right: 0; bottom: 0; left: 0;',
         '}',
         '.lampa-cinema-ambient:after {',
-        '    background: linear-gradient(to bottom, rgba(8,12,18,.36), rgba(8,12,18,.55) 62%, rgba(0,0,0,.76));',
+        '    background: radial-gradient(ellipse at 72% 10%, transparent 12%, rgba(0,0,0,.28) 100%),',
+        '                linear-gradient(to bottom, rgba(0,0,0,.38), rgba(0,0,0,.60) 70%, rgba(0,0,0,.78));',
         '}',
         '.lampa-cinema-surface > .lampa-cinema-art {',
         '    z-index: -1; opacity: 1;',
@@ -73,7 +74,8 @@
         '    animation: lampa-cinema-progress 1.25s cubic-bezier(.45,0,.55,1) infinite;',
         '}',
         '@keyframes lampa-cinema-progress { from { transform: translateX(-105%); } to { transform: translateX(215%); } }',
-        '.lampa-cinema-page > .full-start__background { visibility: hidden; }',
+        '.lampa-cinema-page .full-start__background,',
+        '.lampa-cinema-page .full-start-new__background { visibility: hidden; }',
         '.lampa-cinema-page > .scroll.scroll--mask { -webkit-mask-image: none; mask-image: none; }',
         '.lampa-cinema-page .lampa-cinema-hero {',
         '    box-sizing: border-box; position: relative; display: flex; flex-direction: column;',
@@ -373,8 +375,8 @@
         ambient.className = 'lampa-cinema-ambient';
         ambient.setAttribute('aria-hidden', 'true');
         var canvas = document.createElement('canvas');
-        canvas.width = 4;
-        canvas.height = 3;
+        canvas.width = 96;
+        canvas.height = 1;
         ambient.appendChild(canvas);
         return { art: art, ambient: ambient, canvas: canvas };
     }
@@ -385,8 +387,10 @@
         root.insertBefore(surface.art, root.firstChild);
     }
 
-    function followCardScroll(root, surface, controller) {
-        var viewport = root.querySelector('.scroll');
+    function followCardScroll(root, surface, component) {
+        var controller = component && component.scroll;
+        var viewport = controller && typeof controller.render === 'function' && nodeOf(controller.render(true));
+        if (!viewport || !root.contains(viewport)) viewport = root.querySelector('.scroll');
         if (!viewport) return;
 
         var content = viewport.querySelector('.scroll__content');
@@ -402,6 +406,9 @@
             var transform = body && (body.style.transform || body.style.webkitTransform);
             if (transform && scroll && typeof scroll.position === 'function') {
                 position = Math.abs(scroll.position());
+            } else if (transform) {
+                var translated = /translate3d\([^,]+,\s*(-?[\d.]+)px,/.exec(transform);
+                if (translated) position = -Number(translated[1]);
             }
             var range = (content ? content.offsetHeight : viewport.scrollHeight) - height;
             if (range <= 0) {
@@ -411,10 +418,13 @@
             }
 
             var artworkDistance = Math.min(height * .84, range * .48);
-            var fullyDarkAt = range - Math.min(height * .12, range * .10);
-            var darknessDistance = Math.min(height * .88, range * .40);
+            var fullyDarkAt = range - Math.min(height * .10, range * .08);
+            var fadeStart = Math.max(artworkDistance, fullyDarkAt - height * 2);
+            var moreRows = component && Array.isArray(component.items) && Array.isArray(component.rows) &&
+                component.items.length < component.rows.length;
             surface.art.style.opacity = 1 - Math.min(1, Math.max(0, position / artworkDistance));
-            surface.ambient.style.opacity = Math.min(1, Math.max(0, (fullyDarkAt - position) / darknessDistance));
+            surface.ambient.style.opacity = moreRows ? 1 :
+                Math.min(1, Math.max(0, (fullyDarkAt - position) / (fullyDarkAt - fadeStart)));
         }
 
         viewport.addEventListener('scroll', update);
@@ -456,14 +466,25 @@
             else removeElement(previous);
         }
 
-        // Display the tiny canvas directly, including for images without CORS permission.
+        if (surface.ambient.classList.contains('lampa-cinema-ambient--ready')) return;
+        // Blend three single-color swatches. Drawing needs no pixel readback from the remote image.
         try {
             var canvas = surface.canvas;
             var context = canvas.getContext('2d');
-            if (context) {
-                context.drawImage(image, 0, 0, canvas.width, canvas.height);
-                surface.ambient.classList.add('lampa-cinema-ambient--ready');
-            }
+            var swatches = document.createElement('canvas');
+            swatches.width = 3;
+            swatches.height = 1;
+            var sampler = swatches.getContext('2d');
+            if (!context || !sampler) return;
+            var width = image.naturalWidth;
+            var height = image.naturalHeight;
+            sampler.imageSmoothingQuality = 'high';
+            sampler.drawImage(image, 0, height * .12, width * .48, height * .76, 0, 0, 1, 1);
+            sampler.drawImage(image, width * .26, 0, width * .48, height * .78, 1, 0, 1, 1);
+            sampler.drawImage(image, width * .52, height * .18, width * .48, height * .76, 2, 0, 1, 1);
+            context.imageSmoothingEnabled = true;
+            context.drawImage(swatches, 0, 0, canvas.width, 1);
+            surface.ambient.classList.add('lampa-cinema-ambient--ready');
         } catch (error) {
             // The CSS gradient is the fallback on devices without canvas support.
         }
@@ -609,7 +630,7 @@
         title.setAttribute('data-cinema-type', titleType(card));
         if (title.textContent.trim().length > 38) title.classList.add('lampa-cinema-title-long');
         if (slide && slide[scrollCleanupKey]) slide[scrollCleanupKey]();
-        state.stopFollowingScroll = followCardScroll(root, surface, event.link && event.link.scroll);
+        state.stopFollowingScroll = followCardScroll(root, surface, event.link);
         if (slide) slide[scrollCleanupKey] = state.stopFollowingScroll;
 
         if (opening) {
