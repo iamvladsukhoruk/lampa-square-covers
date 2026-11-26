@@ -1,4 +1,4 @@
-// Lampa TV — киноэкран с цветовым градиентом и затемнением последних двух экранов.
+// Lampa TV — киноэкран с цветовым градиентом и затемнением последних двух секций.
 (function () {
     'use strict';
 
@@ -21,7 +21,7 @@
         '    width: 100%; height: 100vh; height: 100dvh; overflow: hidden; pointer-events: none;',
         '}',
         '.lampa-cinema-surface > .lampa-cinema-ambient {',
-        '    z-index: -2; background: linear-gradient(145deg, #202d3b, #0c1119 68%, #080c12); transition: opacity .3s ease;',
+        '    z-index: -2; background: linear-gradient(145deg, #202d3b, #0c1119 68%, #080c12);',
         '}',
         '.lampa-cinema-ambient canvas {',
         '    width: 100%; height: 100%; display: block; image-rendering: auto; opacity: 0; transition: opacity .36s ease;',
@@ -31,9 +31,17 @@
         '    content: ""; position: absolute; top: 0; right: 0; bottom: 0; left: 0;',
         '}',
         '.lampa-cinema-ambient:after {',
-        '    background: radial-gradient(ellipse at 72% 10%, transparent 12%, rgba(0,0,0,.28) 100%),',
-        '                linear-gradient(to bottom, rgba(0,0,0,.38), rgba(0,0,0,.60) 70%, rgba(0,0,0,.78));',
+        '    background: linear-gradient(to bottom, rgba(0,0,0,.60), rgba(0,0,0,.27)),',
+        '                radial-gradient(ellipse at 74% 40%, transparent 16%, rgba(0,0,0,.30) 100%);',
         '}',
+        '.lampa-cinema-section-shade {',
+        '    position: absolute; z-index: 1; top: 0; left: 0; right: 0; visibility: hidden;',
+        '    background: linear-gradient(to bottom, transparent, rgba(0,0,0,.30) 36%, rgba(0,0,0,.78) 74%, #000);',
+        '}',
+        '.lampa-cinema-section-shade:after {',
+        '    content: ""; position: absolute; top: 100%; right: 0; left: 0; height: 100vh; height: 100dvh; background: #000;',
+        '}',
+        '.lampa-cinema-section-shade--tv { transition: transform .3s ease; }',
         '.lampa-cinema-surface > .lampa-cinema-art {',
         '    z-index: -1; opacity: 1;',
         '    -webkit-mask-image: linear-gradient(to bottom, #000 63%, transparent 100%);',
@@ -151,7 +159,7 @@
         '    .lampa-cinema-brand--translated .lampa-cinema-logo { max-height: 4.5em; }',
         '}',
         '@media (prefers-reduced-motion: reduce) {',
-        '    .lampa-cinema-surface > .lampa-cinema-art, .lampa-cinema-surface > .lampa-cinema-ambient,',
+        '    .lampa-cinema-surface > .lampa-cinema-art, .lampa-cinema-section-shade--tv,',
         '    .lampa-cinema-opening, .lampa-cinema-ambient canvas,',
         '    .lampa-cinema-hero .lampa-cinema-title-slot > .lampa-cinema-title { transition: none; }',
         '    .lampa-cinema-photo--appear, .lampa-cinema-brand, .lampa-cinema-progress:after,',
@@ -376,9 +384,12 @@
         ambient.setAttribute('aria-hidden', 'true');
         var canvas = document.createElement('canvas');
         canvas.width = 96;
-        canvas.height = 1;
+        canvas.height = 54;
         ambient.appendChild(canvas);
-        return { art: art, ambient: ambient, canvas: canvas };
+        var shade = document.createElement('div');
+        shade.className = 'lampa-cinema-section-shade';
+        ambient.appendChild(shade);
+        return { art: art, ambient: ambient, canvas: canvas, shade: shade };
     }
 
     function mountSurface(root, surface) {
@@ -387,7 +398,7 @@
         root.insertBefore(surface.art, root.firstChild);
     }
 
-    function followCardScroll(root, surface, component) {
+    function followCardScroll(root, surface, component, hero) {
         var controller = component && component.scroll;
         var viewport = controller && typeof controller.render === 'function' && nodeOf(controller.render(true));
         if (!viewport || !root.contains(viewport)) viewport = root.querySelector('.scroll');
@@ -397,6 +408,25 @@
         var body = viewport.querySelector('.scroll__body');
         var movement;
         var layout;
+        var fadeTop = null;
+
+        function measureSections() {
+            fadeTop = null;
+            var moreRows = component && Array.isArray(component.items) && Array.isArray(component.rows) &&
+                component.items.length < component.rows.length;
+            var sections = body && !moreRows ? Array.prototype.filter.call(body.children, function (section) {
+                return section.offsetHeight && section !== hero && !section.contains(hero);
+            }) : [];
+            if (sections.length) {
+                var first = sections[Math.max(0, sections.length - 2)].getBoundingClientRect();
+                var last = sections[sections.length - 1].getBoundingClientRect();
+                var padding = content ? parseFloat(window.getComputedStyle(content).paddingTop) || 0 : 0;
+                var viewportTop = viewport.getBoundingClientRect().top - surface.ambient.getBoundingClientRect().top;
+                fadeTop = viewportTop + padding + first.top - body.getBoundingClientRect().top;
+                surface.shade.style.height = Math.max(1, last.top + last.height * .92 - first.top) + 'px';
+            }
+            update();
+        }
 
         function update() {
             var height = viewport.clientHeight;
@@ -411,34 +441,33 @@
                 if (translated) position = -Number(translated[1]);
             }
             var range = (content ? content.offsetHeight : viewport.scrollHeight) - height;
-            if (range <= 0) {
-                surface.art.style.opacity = 1;
-                surface.ambient.style.opacity = 1;
-                return;
-            }
-
             var artworkDistance = Math.min(height * .84, range * .48);
-            var fullyDarkAt = range - Math.min(height * .10, range * .08);
-            var fadeStart = Math.max(artworkDistance, fullyDarkAt - height * 2);
-            var moreRows = component && Array.isArray(component.items) && Array.isArray(component.rows) &&
-                component.items.length < component.rows.length;
-            surface.art.style.opacity = 1 - Math.min(1, Math.max(0, position / artworkDistance));
-            surface.ambient.style.opacity = moreRows ? 1 :
-                Math.min(1, Math.max(0, (fullyDarkAt - position) / (fullyDarkAt - fadeStart)));
+            surface.art.style.opacity = artworkDistance > 0 ?
+                1 - Math.min(1, Math.max(0, position / artworkDistance)) : 1;
+            var showShade = fadeTop !== null && range > 0;
+            surface.shade.style.visibility = showShade ? 'visible' : 'hidden';
+            if (showShade) {
+                surface.shade.classList[transform ? 'add' : 'remove']('lampa-cinema-section-shade--tv');
+                surface.shade.style.transform = 'translate3d(0,' + (fadeTop - position) + 'px,0)';
+            }
         }
 
         viewport.addEventListener('scroll', update);
         // Lampa translates the scroll body on TVs and scrolls natively on touch devices.
         if (body && typeof MutationObserver === 'function') {
-            movement = new MutationObserver(update);
+            movement = new MutationObserver(function (changes) {
+                if (Array.prototype.some.call(changes, function (change) { return change.type === 'childList'; })) {
+                    measureSections();
+                } else update();
+            });
             movement.observe(body, { attributes: true, attributeFilter: ['style'], childList: true });
         }
         if (typeof ResizeObserver === 'function') {
-            layout = new ResizeObserver(update);
+            layout = new ResizeObserver(measureSections);
             layout.observe(viewport);
             if (content) layout.observe(content);
         }
-        update();
+        measureSections();
 
         return function () {
             viewport.removeEventListener('scroll', update);
@@ -467,23 +496,25 @@
         }
 
         if (surface.ambient.classList.contains('lampa-cinema-ambient--ready')) return;
-        // Blend three single-color swatches. Drawing needs no pixel readback from the remote image.
+        // Interpolate four swatches into a soft field, even for images whose pixels cannot be read.
         try {
             var canvas = surface.canvas;
             var context = canvas.getContext('2d');
             var swatches = document.createElement('canvas');
-            swatches.width = 3;
-            swatches.height = 1;
+            swatches.width = 2;
+            swatches.height = 2;
             var sampler = swatches.getContext('2d');
             if (!context || !sampler) return;
             var width = image.naturalWidth;
             var height = image.naturalHeight;
             sampler.imageSmoothingQuality = 'high';
-            sampler.drawImage(image, 0, height * .12, width * .48, height * .76, 0, 0, 1, 1);
-            sampler.drawImage(image, width * .26, 0, width * .48, height * .78, 1, 0, 1, 1);
-            sampler.drawImage(image, width * .52, height * .18, width * .48, height * .76, 2, 0, 1, 1);
+            sampler.drawImage(image, 0, 0, width * .72, height * .70, 0, 0, 1, 1);
+            sampler.drawImage(image, width * .28, 0, width * .72, height * .70, 1, 0, 1, 1);
+            sampler.drawImage(image, 0, height * .30, width * .72, height * .70, 0, 1, 1, 1);
+            sampler.drawImage(image, width * .28, height * .30, width * .72, height * .70, 1, 1, 1, 1);
             context.imageSmoothingEnabled = true;
-            context.drawImage(swatches, 0, 0, canvas.width, 1);
+            // Place the four sample centers at the canvas corners so the blend spans the full field.
+            context.drawImage(swatches, -canvas.width / 2, -canvas.height / 2, canvas.width * 2, canvas.height * 2);
             surface.ambient.classList.add('lampa-cinema-ambient--ready');
         } catch (error) {
             // The CSS gradient is the fallback on devices without canvas support.
@@ -630,7 +661,7 @@
         title.setAttribute('data-cinema-type', titleType(card));
         if (title.textContent.trim().length > 38) title.classList.add('lampa-cinema-title-long');
         if (slide && slide[scrollCleanupKey]) slide[scrollCleanupKey]();
-        state.stopFollowingScroll = followCardScroll(root, surface, event.link);
+        state.stopFollowingScroll = followCardScroll(root, surface, event.link, hero);
         if (slide) slide[scrollCleanupKey] = state.stopFollowingScroll;
 
         if (opening) {
