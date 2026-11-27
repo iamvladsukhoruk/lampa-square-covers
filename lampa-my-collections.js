@@ -22,6 +22,7 @@
         '    font-weight: 700; line-height: 1.12; overflow-wrap: break-word; }',
         '.lampa-collections-action { display: inline-flex; align-items: center; min-height: 2.7em;',
         '    padding: .55em .9em; background: rgba(255,255,255,.12); border-radius: .35em; font-weight: 600; }',
+        '.lampa-collections-action + .lampa-collections-action { margin-left: .55em; }',
         '.lampa-collections-grid { display: flex; flex-wrap: wrap; margin: 0 -.42em; }',
         '.lampa-collections-folder { box-sizing: border-box; display: flex; align-items: center; min-height: 4.8em;',
         '    width: calc(33.33% - .84em); margin: 0 .42em .84em; padding: .95em;',
@@ -37,9 +38,11 @@
         '.lampa-collections-add > .lampa-collections-folder-icon { margin-right: .48em; }',
         '.lampa-collections-add { white-space: nowrap; }',
         '.lampa-collections-section { margin: 0 0 1.4em; }',
-        '.lampa-collections-section h2 { margin: 0 0 .55em; font-size: 1.36em; font-weight: 650; }',
+        '.lampa-collections-section h2, .lampa-collections-section h3 { margin: 0 0 .55em; font-size: 1.36em; font-weight: 650; }',
         '.lampa-collections-grid > .card { box-sizing: border-box; flex: 0 0 auto;',
         '    width: calc(16.66% - .84em); margin: 0 .42em 1.05em; }',
+        '.lampa-collections-recommendations { margin-top: 1.2em; padding-top: 1.2em; border-top: 1px solid rgba(255,255,255,.22); }',
+        '.lampa-collections-recommendations > h2 { margin: 0 0 .65em; font-size: 1.75em; font-weight: 700; }',
         '.lampa-collections-empty { margin-top: 1.2em; max-width: 31em; line-height: 1.5; opacity: .76; }',
         '@media (max-width: 800px) {',
         '    .lampa-collections-grid > .card { width: calc(25% - .84em); }',
@@ -90,19 +93,89 @@
         return saved && entryKey(saved) === entryKey(entry);
     }
 
-    function createFolder(done) {
-        Lampa.Input.edit({ title: 'Название папки', value: '', free: true, nosave: true }, function (input) {
+    function editFolder(original, done) {
+        Lampa.Input.edit({
+            title: original ? 'Новое название папки' : 'Название папки',
+            value: original ? original.name : '',
+            free: true,
+            nosave: true
+        }, function (input) {
             var name = typeof input === 'string' ? input.trim().replace(/\s+/g, ' ') : '';
             if (!name) return done();
             var folders = readFolders();
-            if (folders.some(function (folder) { return folder.name.toLowerCase() === name.toLowerCase(); })) {
+            var folder = original && findFolder(folders, original.id);
+            if (original && !folder) return done();
+            if (folders.some(function (item) { return item !== folder && item.name.toLowerCase() === name.toLowerCase(); })) {
                 Lampa.Noty.show('Папка с таким названием уже есть');
                 return done();
             }
-            var folder = { id: Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 9), name: name, items: [] };
-            folders.push(folder);
+            if (!folder) {
+                folder = { id: Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 9), items: [] };
+                folders.push(folder);
+            }
+            folder.name = name;
             Lampa.Storage.set(storageKey, folders);
             done(folder);
+        });
+    }
+
+    function moveFolder(id, step) {
+        var folders = readFolders();
+        var index = folders.findIndex(function (item) { return item.id === id; });
+        var destination = index + step;
+        if (index === -1 || destination < 0 || destination >= folders.length) return;
+        var folder = folders[index];
+        folders[index] = folders[destination];
+        folders[destination] = folder;
+        Lampa.Storage.set(storageKey, folders);
+        Lampa.Noty.show(step < 0 ? 'Папка перемещена левее' : 'Папка перемещена правее');
+    }
+
+    function restoreActivityHistory() {
+        if (Lampa.Activity.mixState) Lampa.Activity.mixState();
+    }
+
+    function confirmDeleteFolder(folder, done) {
+        Lampa.Select.show({
+            title: 'Удалить папку «' + folder.name + '» вместе с подборкой?',
+            items: [{ title: 'Отмена', selected: true }, { title: 'Удалить папку', remove: true }],
+            onSelect: function (item) {
+                restoreActivityHistory();
+                if (item.remove) {
+                    Lampa.Storage.set(storageKey, readFolders().filter(function (saved) { return saved.id !== folder.id; }));
+                    Lampa.Noty.show('Папка удалена');
+                }
+                done(Boolean(item.remove));
+            },
+            onBack: function () { done(false); }
+        });
+    }
+
+    function manageFolder(id, done) {
+        var folders = readFolders();
+        var index = folders.findIndex(function (folder) { return folder.id === id; });
+        var folder = folders[index];
+        if (!folder) return done(false);
+        Lampa.Select.show({
+            title: folder.name,
+            items: [
+                { title: 'Переименовать', rename: true },
+                { title: 'Переместить левее', step: -1, hide: index === 0 },
+                { title: 'Переместить правее', step: 1, hide: index === folders.length - 1 },
+                { title: 'Удалить папку', remove: true }
+            ],
+            onSelect: function (action) {
+                restoreActivityHistory();
+                if (action.rename) {
+                    editFolder(folder, function () { done(false); });
+                } else if (action.remove) {
+                    confirmDeleteFolder(folder, done);
+                } else {
+                    moveFolder(id, action.step);
+                    done(false);
+                }
+            },
+            onBack: function () { done(false); }
         });
     }
 
@@ -137,6 +210,124 @@
         return { id: id, method: method, source: source, url: object.url || '', card: data };
     }
 
+    function catalogueTitle(entry) {
+        return (entry.source === 'cub' || entry.source === 'tmdb') &&
+            (entry.method === 'movie' || entry.method === 'tv') && /^[1-9]\d*$/.test(String(entry.id));
+    }
+
+    function catalogueKey(entry) {
+        return entry.method + '/' + (entry.card.id || entry.id);
+    }
+
+    function rankRecommendations(lists) {
+        var titles = Object.create(null);
+        var order = 0;
+        lists.forEach(function (entries) {
+            if (!entries) return;
+            var counted = Object.create(null);
+            entries.forEach(function (entry, index) {
+                var key = catalogueKey(entry);
+                if (counted[key]) return;
+                counted[key] = true;
+                var item = titles[key] || (titles[key] = { entry: entry, matches: 0, score: 0, order: order++ });
+                item.matches++;
+                item.score += 1 / (index + 1);
+            });
+        });
+        return Object.keys(titles).map(function (key) { return titles[key]; }).sort(function (a, b) {
+            return b.matches - a.matches || b.score - a.score || a.order - b.order;
+        }).map(function (item) { return item.entry; });
+    }
+
+    function loadRecommendations(items, complete) {
+        var api = Lampa.Api;
+        var tmdb = api && api.sources && api.sources.tmdb;
+        var saved = Object.create(null);
+        var seeds = items.filter(function (entry) {
+            if (!entry || !entry.card || !catalogueTitle(entry)) return false;
+            var key = catalogueKey(entry);
+            if (saved[key]) return false;
+            saved[key] = true;
+            return true;
+        });
+        var lists = [];
+        var remaining = seeds.length;
+        var failed = false;
+        var stopped = false;
+        var deadline;
+
+        function cancel() {
+            stopped = true;
+            clearTimeout(deadline);
+        }
+
+        function finish() {
+            if (stopped) return;
+            cancel();
+            complete(rankRecommendations(lists), failed || remaining > 0);
+        }
+
+        function candidates(data, seed) {
+            var results = data && Array.isArray(data.results) ? data.results : [];
+            results = results.filter(function (item) { return item && typeof item === 'object'; });
+            if (tmdb && typeof tmdb.filterAdult === 'function') results = tmdb.filterAdult(results);
+            return results.map(function (item) {
+                return savedEntry(item, { source: seed.source, method: seed.method });
+            }).filter(function (entry) {
+                return entry && catalogueTitle(entry) && !saved[catalogueKey(entry)];
+            });
+        }
+
+        function request(index) {
+            if (stopped || index >= seeds.length) return;
+            var seed = seeds[index];
+            var settled = false;
+            function done(entries) {
+                if (settled || stopped) return;
+                settled = true;
+                lists[index] = entries;
+                if (!entries) failed = true;
+                if (--remaining === 0) finish();
+                else if (index + 2 < seeds.length) setTimeout(function () { request(index + 2); }, 0);
+            }
+            function error() { done(null); }
+
+            try {
+                if (tmdb && typeof tmdb.get === 'function') {
+                    var path = seed.method + '/' + seed.id;
+                    var cache = { life: 24 * 60 };
+                    function similar() {
+                        if (!stopped && !settled) {
+                            tmdb.get(path + '/similar', {}, function (data) { done(candidates(data, seed)); }, error, cache);
+                        }
+                    }
+                    tmdb.get(path + '/recommendations', {}, function (data) {
+                        if (stopped || settled) return;
+                        var entries = candidates(data, seed);
+                        if (entries.length) done(entries);
+                        else similar();
+                    }, similar, cache);
+                } else if (api && typeof api.full === 'function') {
+                    api.full({ id: seed.id, source: seed.source, method: seed.method, card: Object.assign({}, seed.card) },
+                        function (data) {
+                            if (!data) return error();
+                            var entries = candidates(data.recomend, seed);
+                            done(entries.length ? entries : candidates(data.simular, seed));
+                        }, error);
+                } else error();
+            } catch (problem) {
+                error();
+            }
+        }
+
+        if (remaining) {
+            deadline = setTimeout(finish, 16000);
+            request(0);
+            request(1);
+        } else finish();
+        return cancel;
+    }
+
     function escapeText(text) {
         var escaped = element('span', '', text);
         return escaped.innerHTML;
@@ -163,8 +354,8 @@
             onCheck: function (item) { setMembership(item.folderId, entry, item.checked); },
             onSelect: function (item) {
                 if (!item.create) return;
-                if (Lampa.Activity.mixState) Lampa.Activity.mixState();
-                createFolder(function (folder) {
+                restoreActivityHistory();
+                editFolder(null, function (folder) {
                     if (folder) setMembership(folder.id, entry, true);
                     back();
                 });
@@ -214,6 +405,7 @@
         var controls = Object.create(null);
         var focusKey;
         var snapshot;
+        var cancelRecommendations;
 
         function focus(node, key) {
             controls[key] = node;
@@ -232,6 +424,7 @@
             $(button).on('hover:enter', action);
             focus(button, key);
             parent.appendChild(button);
+            return button;
         }
 
         function clearCards() {
@@ -239,13 +432,13 @@
             cards = [];
         }
 
-        function addSection(label, entries) {
+        function addSection(parent, label, entries) {
             if (!entries.length) return;
             var section = element('section', 'lampa-collections-section');
             var grid = element('div', 'lampa-collections-grid');
-            section.appendChild(element('h2', '', label));
+            section.appendChild(element(parent === page ? 'h2' : 'h3', '', label));
             section.appendChild(grid);
-            page.appendChild(section);
+            parent.appendChild(section);
             entries.forEach(function (entry) {
                 var card = new Lampa.Card(Object.assign({}, entry.card));
                 card.onEnter = function () { openEntry(entry); };
@@ -257,6 +450,44 @@
             });
         }
 
+        function addMedia(parent, entries, limit) {
+            [
+                { title: 'Фильмы', method: 'movie' },
+                { title: 'Сериалы', method: 'tv' }
+            ].forEach(function (group) {
+                var matches = entries.filter(function (entry) { return entry && entry.card && entry.method === group.method; });
+                addSection(parent, group.title, matches.slice(0, limit || matches.length));
+            });
+        }
+
+        function syncFocus() {
+            Lampa.Controller.collectionSet(page);
+            Lampa.Controller.collectionFocus(controls[focusKey] || false, page);
+            Lampa.Layer.visible(viewport);
+        }
+
+        function showRecommendations(folder) {
+            var block = element('section', 'lampa-collections-recommendations');
+            block.appendChild(element('h2', '', 'Рекомендации'));
+            var status = element('p', 'lampa-collections-empty', 'Ищу похожие фильмы и сериалы…');
+            status.setAttribute('role', 'status');
+            block.appendChild(status);
+            page.appendChild(block);
+            cancelRecommendations = loadRecommendations(folder.items, function (entries, failed) {
+                if (failed) {
+                    status.textContent = entries.length ? 'Загрузилась часть рекомендаций.' : 'Не удалось загрузить рекомендации.';
+                    addAction(block, 'Повторить', 'retry', function () {
+                        snapshot = null;
+                        refreshPage();
+                        syncFocus();
+                    });
+                } else if (entries.length) block.removeChild(status);
+                else status.textContent = 'Пока нет новых рекомендаций для этой папки.';
+                addMedia(block, entries, 18);
+                if (Lampa.Controller.own(self)) syncFocus();
+            });
+        }
+
         function refreshPage() {
             var folders = readFolders();
             var folder = object.folderId && findFolder(folders, object.folderId);
@@ -265,6 +496,7 @@
             }));
             if (current === snapshot) return;
             snapshot = current;
+            if (cancelRecommendations) cancelRecommendations();
             clearCards();
             page.textContent = '';
             controls = Object.create(null);
@@ -274,15 +506,26 @@
 
             if (object.folderId) {
                 addAction(header, 'К папкам', 'folders', function () { Lampa.Activity.backward(); });
+                if (folder) {
+                    addAction(header, 'Управление папкой', 'manage', function () {
+                        manageFolder(folder.id, function (removed) {
+                            if (removed) Lampa.Activity.backward();
+                            else Lampa.Controller.toggle('content');
+                        });
+                    });
+                }
                 if (!folder || !folder.items.length) {
                     page.appendChild(element('p', 'lampa-collections-empty', folder ? emptyFolderText : 'Папка не найдена.'));
                     return;
                 }
-                addSection('Фильмы', folder.items.filter(function (entry) { return entry && entry.card && entry.method === 'movie'; }));
-                addSection('Сериалы', folder.items.filter(function (entry) { return entry && entry.card && entry.method === 'tv'; }));
+                addMedia(page, folder.items);
+                var permit = Lampa.Account && Lampa.Account.Permit;
+                if (!(permit && permit.child_small) && folder.items.some(function (entry) {
+                    return entry && entry.card && catalogueTitle(entry);
+                })) showRecommendations(folder);
             } else {
                 addAction(header, createLabel, 'create', function () {
-                    createFolder(function (added) {
+                    editFolder(null, function (added) {
                         if (added) focusKey = 'folder-' + added.id;
                         Lampa.Controller.toggle('content');
                     });
@@ -290,7 +533,11 @@
                 var grid = element('div', 'lampa-collections-grid');
                 page.appendChild(grid);
                 folders.forEach(function (item) {
-                    addAction(grid, item.name, 'folder-' + item.id, function () { openCollections(item); }, true);
+                    var tile = addAction(grid, item.name, 'folder-' + item.id, function () { openCollections(item); }, true);
+                    $(tile).on('hover:long', function () {
+                        focusKey = 'folder-' + item.id;
+                        manageFolder(item.id, function () { Lampa.Controller.toggle('content'); });
+                    });
                 });
                 if (!folders.length) page.appendChild(element('p', 'lampa-collections-empty', emptyFolderText));
             }
@@ -315,9 +562,7 @@
                 link: self,
                 toggle: function () {
                     refreshPage();
-                    Lampa.Controller.collectionSet(page);
-                    Lampa.Controller.collectionFocus(controls[focusKey] || false, page);
-                    Lampa.Layer.visible(viewport);
+                    syncFocus();
                 },
                 left: function () { move('left', 'menu'); },
                 up: function () { move('up', 'head'); },
@@ -329,7 +574,11 @@
         };
         this.pause = this.stop = function () {};
         this.render = function (js) { return js ? viewport : $(viewport); };
-        this.destroy = function () { clearCards(); scroll.destroy(); };
+        this.destroy = function () {
+            if (cancelRecommendations) cancelRecommendations();
+            clearCards();
+            scroll.destroy();
+        };
     }
 
     function init() {
