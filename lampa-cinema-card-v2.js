@@ -9,6 +9,7 @@
     var scrollCleanupKey = '__lampaCinemaScrollCleanup';
     var backgroundSetting = 'lampa_cinema_background';
     var backgroundAttribute = 'data-lampa-cinema-background';
+    var shadeSetting = 'lampa_cinema_bottom_shade';
     if (!Lampa || !Lampa.Listener || document.getElementById(styleId)) return;
 
     var style = document.createElement('style');
@@ -39,6 +40,7 @@
         '    position: absolute; z-index: -1; right: 0; bottom: 0; left: 0;',
         '    visibility: hidden; pointer-events: none;',
         '}',
+        '[data-lampa-cinema-shade="off"] .lampa-cinema-section-shade { display: none; }',
         '.lampa-cinema-art {',
         '    z-index: -1; opacity: 1;',
         '    -webkit-mask-image: linear-gradient(to bottom, #000 63%, transparent 100%);',
@@ -60,9 +62,10 @@
         '.lampa-cinema-art:not(.lampa-cinema-art-ready),',
         '[data-lampa-cinema-background="gradient"] .lampa-cinema-art,',
         '[data-lampa-cinema-background="black"] .lampa-cinema-art { visibility: hidden; }',
-        '[data-lampa-cinema-background="black"] .lampa-cinema-surface > .lampa-cinema-ambient { background: #000; }',
-        '[data-lampa-cinema-background="black"] .lampa-cinema-ambient canvas,',
-        '[data-lampa-cinema-background="black"] .lampa-cinema-ambient:after { display: none; }',
+        '[data-lampa-cinema-base="native"] .lampa-cinema-page,',
+        '[data-lampa-cinema-base="native"] .lampa-cinema-opening { background: transparent; }',
+        '[data-lampa-cinema-base="black"] .lampa-cinema-ambient,',
+        '[data-lampa-cinema-base="native"] .lampa-cinema-ambient { visibility: hidden; }',
         '.lampa-cinema-opening {',
         '    position: absolute; z-index: 0; top: 0; right: 0; left: 0; height: calc(100vh - 4em);',
         '    height: calc(100dvh - 4em); opacity: 0; pointer-events: none; transition: opacity .28s ease;',
@@ -180,39 +183,81 @@
         }
     };
 
-    updateBackgroundMode(setting(backgroundSetting));
-    if (window.appready) addBackgroundSetting();
-    else Lampa.Listener.follow('app', function (event) {
-        if (event.type === 'ready') addBackgroundSetting();
-    });
+    var storageListener = Lampa.Storage && Lampa.Storage.listener;
+    if (storageListener && typeof storageListener.follow === 'function') {
+        storageListener.follow('change', function (event) {
+            if (event.name === shadeSetting) updateShade(event.value);
+            if ([backgroundSetting, 'background', 'background_type', 'light_version'].indexOf(event.name) !== -1) {
+                updateBackgroundMode(setting(backgroundSetting));
+            }
+        });
+    }
+
+    if (window.appready) addInterfaceSettings();
+    else {
+        updateBackgroundMode(setting(backgroundSetting));
+        updateShade(setting(shadeSetting));
+        Lampa.Listener.follow('app', function (event) {
+            if (event.type === 'ready') addInterfaceSettings();
+        });
+    }
 
     function setting(name) {
         return Lampa.Storage && Lampa.Storage.field && Lampa.Storage.field(name);
     }
 
-    function updateBackgroundMode(mode) {
-        document.documentElement.setAttribute(backgroundAttribute,
-            mode === 'black' || mode === 'gradient' ? mode : 'picture');
+    function settingIsOff(value) {
+        return value === false || value === 'false';
     }
 
-    function addBackgroundSetting() {
-        if (!Lampa.SettingsApi || !Lampa.SettingsApi.addParam) return;
+    function homeBackgroundMode() {
+        var type = setting('background_type');
+        var light = setting('light_version');
+        if (settingIsOff(setting('background')) || type === 'black' || light === true || light === 'true') return 'black';
+        // In poster mode the native layer can show a sharp copy of the hero behind the lower sections.
+        if (type === 'poster') return 'palette';
+        var background = Lampa.Background;
+        var layer = background && typeof background.render === 'function' && nodeOf(background.render());
+        return layer && document.documentElement.contains(layer) ? 'native' : 'palette';
+    }
+
+    function updateBackgroundMode(mode) {
+        mode = mode === 'black' || mode === 'gradient' ? mode : 'picture';
+        var base = mode === 'picture' ? homeBackgroundMode() : mode === 'black' ? 'black' : 'palette';
+        document.documentElement.setAttribute(backgroundAttribute, mode);
+        document.documentElement.setAttribute('data-lampa-cinema-base', base);
+    }
+
+    function updateShade(value) {
+        document.documentElement.setAttribute('data-lampa-cinema-shade', settingIsOff(value) ? 'off' : 'on');
+    }
+
+    function addInterfaceSettings() {
         var translations = {
-            ru: ['Фон карточки', 'Чёрный', 'Кадр', 'Градиент'],
-            uk: ['Тло картки', 'Чорний', 'Кадр', 'Градієнт'],
-            en: ['Card background', 'Black', 'Backdrop', 'Gradient']
+            ru: ['Фон карточки', 'Чёрный', 'Как на главной', 'Градиент', 'Затемнение внизу карточки'],
+            uk: ['Тло картки', 'Чорний', 'Як на головній', 'Градієнт', 'Затемнення внизу картки'],
+            en: ['Card background', 'Black', 'Same as home', 'Gradient', 'Darken the bottom of the card']
         };
         var text = translations[languageCode(setting('language'))] || translations.ru;
-        Lampa.SettingsApi.addParam({
-            component: 'interface',
-            param: {
-                name: backgroundSetting, type: 'select', default: 'picture',
-                values: { black: text[1], picture: text[2], gradient: text[3] }
-            },
-            field: { name: text[0] },
-            onChange: updateBackgroundMode
-        });
+        if (Lampa.SettingsApi && Lampa.SettingsApi.addParam) {
+            Lampa.SettingsApi.addParam({
+                component: 'interface',
+                param: {
+                    name: backgroundSetting, type: 'select', default: 'picture',
+                    values: { black: text[1], picture: text[2], gradient: text[3] }
+                },
+                field: { name: text[0] },
+                onChange: updateBackgroundMode
+            });
+            Lampa.SettingsApi.addParam({
+                component: 'interface',
+                param: { name: shadeSetting, type: 'trigger', default: true },
+                field: { name: text[4] },
+                onChange: updateShade
+            });
+        }
         updateBackgroundMode(setting(backgroundSetting));
+        updateShade(setting(shadeSetting));
     }
 
     function previewUrl(card, size) {
@@ -391,6 +436,7 @@
     }
 
     function mountSurface(root, surface, hero) {
+        updateBackgroundMode(setting(backgroundSetting));
         root.classList.add('lampa-cinema-surface');
         root.insertBefore(surface.ambient, root.firstChild);
         var artRoot = hero || root;
