@@ -1,4 +1,4 @@
-// Lampa TV — киноэкран с цветовым градиентом и затемнением последних двух секций.
+// Lampa TV — киноэкран с фоном каталога и плавным переходом к чёрной последней секции.
 (function () {
     'use strict';
 
@@ -34,12 +34,16 @@
         '    background: linear-gradient(to bottom, rgba(0,0,0,.48), rgba(0,0,0,.22)),',
         '                radial-gradient(ellipse at 74% 40%, transparent 16%, rgba(0,0,0,.21) 100%);',
         '}',
+        '.lampa-cinema-native-background, .lampa-cinema-native-background > .lampa-cinema-ambient { background: transparent; }',
+        '.lampa-cinema-native-background > .lampa-cinema-ambient canvas,',
+        '.lampa-cinema-native-background > .lampa-cinema-ambient:after { display: none; }',
+        '[data-lampa-cinema-background="black"] .lampa-cinema-native-background { background: #000; }',
         '.lampa-cinema-section-shade {',
         '    position: absolute; z-index: 1; top: 0; left: 0; right: 0; visibility: hidden;',
-        '    background: linear-gradient(to bottom, transparent, rgba(0,0,0,.30) 36%, rgba(0,0,0,.78) 74%, #000);',
+        '    background: linear-gradient(to bottom, transparent, rgba(0,0,0,.12) 28%, rgba(0,0,0,.48) 66%, #000);',
         '}',
-        '.lampa-cinema-section-shade:after {',
-        '    content: ""; position: absolute; top: 100%; right: 0; left: 0; height: 100vh; height: 100dvh; background: #000;',
+        '.lampa-cinema-final-shade {',
+        '    position: absolute; top: 100%; right: 0; left: 0; background: #000;',
         '}',
         '.lampa-cinema-section-shade--tv { transition: transform .3s ease; }',
         '.lampa-cinema-surface > .lampa-cinema-art {',
@@ -389,14 +393,26 @@
         ambient.appendChild(canvas);
         var shade = document.createElement('div');
         shade.className = 'lampa-cinema-section-shade';
+        var finalShade = document.createElement('div');
+        finalShade.className = 'lampa-cinema-final-shade';
+        shade.appendChild(finalShade);
         ambient.appendChild(shade);
-        return { art: art, ambient: ambient, canvas: canvas, shade: shade };
+        return { art: art, ambient: ambient, canvas: canvas, shade: shade, finalShade: finalShade };
     }
 
     function mountSurface(root, surface) {
         root.classList.add('lampa-cinema-surface');
+        root.classList[nativeBackgroundVisible() ? 'add' : 'remove']('lampa-cinema-native-background');
         root.insertBefore(surface.ambient, root.firstChild);
         root.insertBefore(surface.art, root.firstChild);
+    }
+
+    function nativeBackgroundVisible() {
+        var background = Lampa.Background;
+        if (!background || typeof background.render !== 'function' ||
+            !setting('background') || setting('light_version')) return false;
+        var layer = nodeOf(background.render());
+        return layer && document.documentElement.contains(layer) && !layer.classList.contains('hide');
     }
 
     function followCardScroll(root, surface, component, hero) {
@@ -422,12 +438,20 @@
                 return section.offsetHeight && section !== hero && !section.contains(hero);
             }) : [];
             if (sections.length) {
-                var first = sections[Math.max(0, sections.length - 2)].getBoundingClientRect();
                 var last = sections[sections.length - 1].getBoundingClientRect();
+                // The first two sections below the hero retain the catalogue colors.
+                var fadeStart = sections.length > 3 ? sections[2].getBoundingClientRect().top : last.top;
+                if (fadeStart >= last.top) {
+                    var previous = sections[sections.length - 2] || hero;
+                    var previousBox = previous.getBoundingClientRect();
+                    var shortFade = Math.max(1, Math.min(viewport.clientHeight * .16, previousBox.height * .20));
+                    fadeStart = Math.min(previousBox.bottom, last.top - shortFade);
+                }
                 var padding = content ? parseFloat(window.getComputedStyle(content).paddingTop) || 0 : 0;
                 var viewportTop = viewport.getBoundingClientRect().top - surface.ambient.getBoundingClientRect().top;
-                fadeTop = viewportTop + padding + first.top - body.getBoundingClientRect().top;
-                surface.shade.style.height = Math.max(1, last.top + last.height * .92 - first.top) + 'px';
+                fadeTop = viewportTop + padding + fadeStart - body.getBoundingClientRect().top;
+                surface.shade.style.height = Math.max(1, last.top - fadeStart) + 'px';
+                surface.finalShade.style.height = (last.height + viewport.clientHeight) + 'px';
             }
             update();
         }
