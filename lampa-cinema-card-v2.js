@@ -34,14 +34,11 @@
         '    background: linear-gradient(to bottom, rgba(0,0,0,.48), rgba(0,0,0,.22)),',
         '                radial-gradient(ellipse at 74% 40%, transparent 16%, rgba(0,0,0,.21) 100%);',
         '}',
+        '.lampa-cinema-scroll-body { position: relative; z-index: 0; }',
         '.lampa-cinema-section-shade {',
-        '    position: absolute; z-index: 1; top: 0; left: 0; right: 0; visibility: hidden;',
-        '    background: linear-gradient(to bottom, transparent, rgba(0,0,0,.12) 28%, rgba(0,0,0,.48) 66%, #000);',
+        '    position: absolute; z-index: -1; right: 0; bottom: 0; left: 0;',
+        '    visibility: hidden; pointer-events: none;',
         '}',
-        '.lampa-cinema-final-shade {',
-        '    position: absolute; top: 100%; right: 0; left: 0; background: #000;',
-        '}',
-        '.lampa-cinema-section-shade--tv { transition: transform .3s ease; }',
         '.lampa-cinema-art {',
         '    z-index: -1; opacity: 1;',
         '    -webkit-mask-image: linear-gradient(to bottom, #000 63%, transparent 100%);',
@@ -163,7 +160,7 @@
         '    .lampa-cinema-brand--translated .lampa-cinema-logo { max-height: 4.5em; }',
         '}',
         '@media (prefers-reduced-motion: reduce) {',
-        '    .lampa-cinema-art, .lampa-cinema-section-shade--tv,',
+        '    .lampa-cinema-art,',
         '    .lampa-cinema-opening, .lampa-cinema-ambient canvas,',
         '    .lampa-cinema-hero .lampa-cinema-title-slot > .lampa-cinema-title { transition: none; }',
         '    .lampa-cinema-photo--appear, .lampa-cinema-brand, .lampa-cinema-progress:after,',
@@ -390,13 +387,7 @@
         canvas.width = 96;
         canvas.height = 54;
         ambient.appendChild(canvas);
-        var shade = document.createElement('div');
-        shade.className = 'lampa-cinema-section-shade';
-        var finalShade = document.createElement('div');
-        finalShade.className = 'lampa-cinema-final-shade';
-        shade.appendChild(finalShade);
-        ambient.appendChild(shade);
-        return { art: art, ambient: ambient, canvas: canvas, shade: shade, finalShade: finalShade };
+        return { art: art, ambient: ambient, canvas: canvas };
     }
 
     function mountSurface(root, surface, hero) {
@@ -422,40 +413,70 @@
 
         var content = viewport.querySelector('.scroll__content');
         var body = viewport.querySelector('.scroll__body');
+        var shade;
         var movement;
         var layout;
-        var fadeTop = null;
+        var measured = false;
         var padding = 0;
+        if (body) {
+            shade = document.createElement('span');
+            shade.className = 'lampa-cinema-section-shade';
+            shade.setAttribute('aria-hidden', 'true');
+            body.classList.add('lampa-cinema-scroll-body');
+            body.appendChild(shade);
+        }
 
         function measureSections() {
-            fadeTop = null;
-            padding = content ? parseFloat(window.getComputedStyle(content).paddingTop) || 0 : 0;
+            if (!shade) return;
+            var height = viewport.clientHeight;
+            var box = body.getBoundingClientRect();
+            var contentStyle = content && window.getComputedStyle(content);
+            padding = contentStyle ? parseFloat(contentStyle.paddingTop) || 0 : 0;
+            var bottomPadding = contentStyle ? parseFloat(contentStyle.paddingBottom) || 0 : 0;
+            measured = height > 0 && box.height > 0;
             var moreRows = component && Array.isArray(component.items) && Array.isArray(component.rows) &&
                 component.items.length < component.rows.length;
-            var sections = body && !moreRows ? Array.prototype.filter.call(body.children, function (section) {
-                return section.offsetHeight && section !== hero && !section.contains(hero);
-            }) : [];
-            if (sections.length) {
-                var last = sections[sections.length - 1].getBoundingClientRect();
-                // The first two sections below the hero retain the catalogue colors.
-                var fadeStart = sections.length > 3 ? sections[2].getBoundingClientRect().top : last.top;
-                if (fadeStart >= last.top) {
-                    var previous = sections[sections.length - 2] || hero;
-                    var previousBox = previous.getBoundingClientRect();
-                    var shortFade = Math.max(1, Math.min(viewport.clientHeight * .16, previousBox.height * .20));
-                    fadeStart = Math.min(previousBox.bottom, last.top - shortFade);
-                }
-                var viewportTop = viewport.getBoundingClientRect().top - surface.ambient.getBoundingClientRect().top;
-                fadeTop = viewportTop + padding + fadeStart - body.getBoundingClientRect().top;
-                surface.shade.style.height = Math.max(1, last.top - fadeStart) + 'px';
-                surface.finalShade.style.height = (last.height + viewport.clientHeight) + 'px';
+            if (!measured || moreRows || box.height + padding + bottomPadding <= height) {
+                shade.style.visibility = 'hidden';
+                return;
             }
+            var sections = Array.prototype.filter.call(body.children, function (section) {
+                return section !== shade && section.offsetHeight && !section.contains(hero);
+            });
+            if (!sections.length) {
+                shade.style.visibility = 'hidden';
+                return;
+            }
+
+            var lastTop = sections[sections.length - 1].getBoundingClientRect().top - box.top;
+            var heroEnd = hero.getBoundingClientRect().bottom - box.top;
+            // Short cards can start fading near the end of the preceding section.
+            var preferredStart = sections.length > 3 ?
+                sections[sections.length - 2].getBoundingClientRect().top - box.top : lastTop - height * .55;
+            var fadeTop = Math.max(heroEnd, preferredStart);
+            var room = box.height - fadeTop;
+            if (room <= 0) {
+                shade.style.visibility = 'hidden';
+                return;
+            }
+            var fadeLength = Math.min(room, Math.max(lastTop - fadeTop, Math.min(height * .45, room * .72)));
+            shade.style.top = fadeTop + 'px';
+            shade.style.backgroundImage = 'linear-gradient(to bottom, rgba(0,0,0,0), rgba(0,0,0,.24) ' +
+                (fadeLength * .35) + 'px, rgba(0,0,0,.67) ' + (fadeLength * .72) + 'px, #000 ' + fadeLength + 'px)';
+            // Continue the black into the bottom padding without extending the scroll range.
+            shade.style.boxShadow = bottomPadding ? '0 ' + bottomPadding + 'px #000' : '';
+            shade.style.visibility = 'visible';
+        }
+
+        function refreshLayout() {
+            measureSections();
             update();
         }
 
         function update() {
             var height = viewport.clientHeight;
             if (!height) return;
+            if (shade && !measured) measureSections();
             var position = viewport.scrollTop || 0;
             var scroll = controller || viewport.Scroll;
             var transform = body && (body.style.transform || body.style.webkitTransform) ||
@@ -472,12 +493,6 @@
             var artworkDistance = Math.min(height * .84, range * .48);
             surface.art.style.opacity = artworkDistance > 0 ?
                 1 - Math.min(1, Math.max(0, position / artworkDistance)) : 1;
-            var showShade = fadeTop !== null && range > 0;
-            surface.shade.style.visibility = showShade ? 'visible' : 'hidden';
-            if (showShade) {
-                surface.shade.classList[transform ? 'add' : 'remove']('lampa-cinema-section-shade--tv');
-                surface.shade.style.transform = 'translate3d(0,' + (fadeTop - position) + 'px,0)';
-            }
         }
 
         function onScrollTransition(event) {
@@ -491,18 +506,19 @@
         if (body && typeof MutationObserver === 'function') {
             movement = new MutationObserver(function (changes) {
                 if (Array.prototype.some.call(changes, function (change) { return change.type === 'childList'; })) {
-                    measureSections();
+                    refreshLayout();
                 } else update();
             });
             movement.observe(body, { attributes: true, attributeFilter: ['style'], childList: true });
             if (content) movement.observe(content, { attributes: true, attributeFilter: ['style'] });
         }
         if (typeof ResizeObserver === 'function') {
-            layout = new ResizeObserver(measureSections);
+            layout = new ResizeObserver(refreshLayout);
             layout.observe(viewport);
             if (content) layout.observe(content);
-        }
-        measureSections();
+            if (body) layout.observe(body);
+        } else window.addEventListener('resize', refreshLayout);
+        refreshLayout();
 
         return function () {
             viewport.removeEventListener('scroll', update);
@@ -510,6 +526,11 @@
             viewport.removeEventListener('webkitTransitionEnd', onScrollTransition);
             if (movement) movement.disconnect();
             if (layout) layout.disconnect();
+            else window.removeEventListener('resize', refreshLayout);
+            if (shade) {
+                removeElement(shade);
+                body.classList.remove('lampa-cinema-scroll-body');
+            }
         };
     }
 
