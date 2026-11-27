@@ -31,8 +31,8 @@
         '    content: ""; position: absolute; top: 0; right: 0; bottom: 0; left: 0;',
         '}',
         '.lampa-cinema-ambient:after {',
-        '    background: linear-gradient(to bottom, rgba(0,0,0,.60), rgba(0,0,0,.27)),',
-        '                radial-gradient(ellipse at 74% 40%, transparent 16%, rgba(0,0,0,.30) 100%);',
+        '    background: linear-gradient(to bottom, rgba(0,0,0,.48), rgba(0,0,0,.22)),',
+        '                radial-gradient(ellipse at 74% 40%, transparent 16%, rgba(0,0,0,.21) 100%);',
         '}',
         '.lampa-cinema-section-shade {',
         '    position: absolute; z-index: 1; top: 0; left: 0; right: 0; visibility: hidden;',
@@ -82,8 +82,9 @@
         '    animation: lampa-cinema-progress 1.25s cubic-bezier(.45,0,.55,1) infinite;',
         '}',
         '@keyframes lampa-cinema-progress { from { transform: translateX(-105%); } to { transform: translateX(215%); } }',
-        '.lampa-cinema-page .full-start__background,',
-        '.lampa-cinema-page .full-start-new__background { visibility: hidden; }',
+        '.lampa-cinema-managed-background .full-start__background,',
+        '.lampa-cinema-managed-background .full-start-new__background,',
+        '.lampa-cinema-managed-background .cardify__background { visibility: hidden !important; }',
         '.lampa-cinema-page > .scroll.scroll--mask { -webkit-mask-image: none; mask-image: none; }',
         '.lampa-cinema-page .lampa-cinema-hero {',
         '    box-sizing: border-box; position: relative; display: flex; flex-direction: column;',
@@ -401,7 +402,10 @@
     function followCardScroll(root, surface, component, hero) {
         var controller = component && component.scroll;
         var viewport = controller && typeof controller.render === 'function' && nodeOf(controller.render(true));
-        if (!viewport || !root.contains(viewport)) viewport = root.querySelector('.scroll');
+        if (!viewport || !root.contains(viewport) || !viewport.contains(hero)) {
+            viewport = typeof hero.closest === 'function' && hero.closest('.scroll');
+            if (!viewport || !root.contains(viewport)) viewport = root.querySelector('.scroll');
+        }
         if (!viewport) return;
 
         var content = viewport.querySelector('.scroll__content');
@@ -434,8 +438,8 @@
             var position = viewport.scrollTop || 0;
             var scroll = controller || viewport.Scroll;
             var transform = body && (body.style.transform || body.style.webkitTransform);
-            if (transform && scroll && typeof scroll.position === 'function') {
-                position = Math.abs(scroll.position());
+            if (scroll && typeof scroll.position === 'function') {
+                position = Math.max(position, Math.abs(Number(scroll.position())) || 0);
             } else if (transform) {
                 var translated = /translate3d\([^,]+,\s*(-?[\d.]+)px,/.exec(transform);
                 if (translated) position = -Number(translated[1]);
@@ -553,6 +557,7 @@
         var existing = slide[openingKey];
         if (event.type === 'destroy' || event.type === 'archive') {
             if (existing) closeOpening(slide, existing);
+            if (event.type === 'destroy') slide.classList.remove('lampa-cinema-managed-background');
             if (event.type === 'destroy' && slide[scrollCleanupKey]) {
                 slide[scrollCleanupKey]();
                 delete slide[scrollCleanupKey];
@@ -643,7 +648,15 @@
         }
         if (event.type !== 'complite' && event.type !== 'complete') return;
 
-        var root = nodeOf(event.body);
+        var activity = object && object.activity;
+        var component = event.link;
+        if (!component && activity) {
+            component = typeof activity.component === 'function' ? activity.component() : activity.component;
+        }
+        // Lampa 2 sends full:complite without body or link.
+        var root = nodeOf(event.body) ||
+            (component && typeof component.render === 'function' && nodeOf(component.render(true))) ||
+            (slide && slide.querySelector('.activity__body'));
         var hero = root && (root.querySelector('.full-start-new') || root.querySelector('.full-start'));
         var title = hero && hero.querySelector('.full-start-new__title, .full-start__title');
         if (!title) return;
@@ -656,12 +669,13 @@
         var state = root[stateKey] = { card: card, hero: hero, title: title, surface: surface };
         mountSurface(root, surface);
         root.classList.add('lampa-cinema-page');
+        (slide || root).classList.add('lampa-cinema-managed-background');
         hero.classList.add('lampa-cinema-hero');
         title.classList.add('lampa-cinema-title');
         title.setAttribute('data-cinema-type', titleType(card));
         if (title.textContent.trim().length > 38) title.classList.add('lampa-cinema-title-long');
         if (slide && slide[scrollCleanupKey]) slide[scrollCleanupKey]();
-        state.stopFollowingScroll = followCardScroll(root, surface, event.link, hero);
+        state.stopFollowingScroll = followCardScroll(root, surface, component, hero);
         if (slide) slide[scrollCleanupKey] = state.stopFollowingScroll;
 
         if (opening) {
