@@ -1,4 +1,4 @@
-// Lampa TV — кадр на первом экране, цвета фильма и чёрная последняя секция.
+// Lampa TV — полноэкранный кадр, слайды, трейлеры и оценки в карточке.
 (function () {
     'use strict';
 
@@ -7,9 +7,11 @@
     var stateKey = '__lampaCinemaCard';
     var openingKey = '__lampaCinemaOpening';
     var scrollCleanupKey = '__lampaCinemaScrollCleanup';
+    var mediaKey = '__lampaCinemaMedia';
     var backgroundSetting = 'lampa_cinema_background';
     var backgroundAttribute = 'data-lampa-cinema-background';
     var shadeSetting = 'lampa_cinema_bottom_shade';
+    var activeMedia;
     if (!Lampa || !Lampa.Listener || document.getElementById(styleId)) return;
 
     var style = document.createElement('style');
@@ -43,25 +45,26 @@
         '[data-lampa-cinema-shade="off"] .lampa-cinema-section-shade { display: none; }',
         '.lampa-cinema-art {',
         '    z-index: -1; opacity: 1;',
-        '    -webkit-mask-image: linear-gradient(to bottom, #000 63%, transparent 100%);',
-        '    mask-image: linear-gradient(to bottom, #000 63%, transparent 100%);',
+        '    -webkit-mask-image: linear-gradient(to bottom, #000 48%, transparent 98%);',
+        '    mask-image: linear-gradient(to bottom, #000 48%, transparent 98%);',
         '    transition: opacity .3s ease;',
         '}',
         '.lampa-cinema-hero > .lampa-cinema-art {',
         '    bottom: 0; height: auto; max-height: 100vh; max-height: 100dvh;',
         '}',
         '.lampa-cinema-photo {',
-        '    position: absolute; top: 0; right: 0; bottom: 0; left: 0; background: center 42% / cover no-repeat;',
+        '    position: absolute; top: 0; right: 0; bottom: 0; left: 0; background: center / cover no-repeat;',
         '}',
         '.lampa-cinema-photo--appear { animation: lampa-cinema-reveal .38s ease-out both; }',
+        '.lampa-cinema-slides { position: absolute; z-index: 1; top: 0; right: 0; bottom: 0; left: 0; }',
+        '.lampa-cinema-slides .lampa-cinema-photo--appear { animation-duration: .65s; }',
         '@keyframes lampa-cinema-reveal { from { opacity: 0; } to { opacity: 1; } }',
         '.lampa-cinema-art:after {',
-        '    background: linear-gradient(to bottom, transparent 40%, rgba(0,0,0,.22) 59%, rgba(0,0,0,.68) 85%, #000 100%),',
-        '                linear-gradient(to right, rgba(0,0,0,.58), rgba(0,0,0,.15) 43%, transparent 74%);',
+        '    z-index: 2; background: linear-gradient(90deg, rgba(0,0,0,.42), rgba(0,0,0,.14) 44%, transparent 76%);',
         '}',
         '.lampa-cinema-art:not(.lampa-cinema-art-ready),',
-        '[data-lampa-cinema-background="gradient"] .lampa-cinema-art,',
-        '[data-lampa-cinema-background="black"] .lampa-cinema-art { visibility: hidden; }',
+        '[data-lampa-cinema-background="gradient"] .lampa-cinema-art:not(.lampa-cinema-media-selected),',
+        '[data-lampa-cinema-background="black"] .lampa-cinema-art:not(.lampa-cinema-media-selected) { visibility: hidden; }',
         '[data-lampa-cinema-base="native"] .lampa-cinema-page,',
         '[data-lampa-cinema-base="native"] .lampa-cinema-opening { background: transparent; }',
         '[data-lampa-cinema-base="black"] .lampa-cinema-ambient,',
@@ -92,7 +95,7 @@
         '.lampa-cinema-page .lampa-cinema-hero {',
         '    box-sizing: border-box; position: relative; z-index: 0; display: flex; flex-direction: column;',
         '    justify-content: flex-end; min-height: 78vh;',
-        '    min-height: calc(100vh - 6em); min-height: calc(100dvh - 6em);',
+        '    min-height: calc(100vh - 4em); min-height: calc(100dvh - 4em);',
         '    width: 100%; padding: 2em 4.2vw 2.6em; color: #f9f4ec;',
         '}',
         '.lampa-cinema-hero .full-start-new__body, .lampa-cinema-hero .full-start__body {',
@@ -152,6 +155,23 @@
         '.lampa-cinema-hero .full-start-new__rate-line { margin-bottom: .65em; }',
         '.lampa-cinema-hero .full-start-new__details { line-height: 1.35; margin-bottom: .55em; }',
         '.lampa-cinema-hero .full-start-new__reactions { margin-bottom: .7em; }',
+        '.lampa-cinema-ratings { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start;',
+        '    margin: 0 0 .7em; text-shadow: 0 1px 6px rgba(0,0,0,.55); }',
+        '.lampa-cinema-ratings:empty, .lampa-cinema-ratings[hidden], .lampa-cinema-reaction-summary[hidden] { display: none; }',
+        '.lampa-cinema-ratings > .full-start-new__rate-line, .lampa-cinema-ratings > .full-start__rate-line,',
+        '.lampa-cinema-ratings > .tv-main-rate, .lampa-cinema-ratings > .tv-new-rating {',
+        '    position: static; justify-content: flex-start; margin: .14em .7em .14em 0; }',
+        '.lampa-cinema-score { margin: .14em .7em .14em 0; padding: .35em .55em; border: 1px solid rgba(255,255,255,.32);',
+        '    border-radius: .32em; background: rgba(0,0,0,.3); font-size: .85em; font-weight: 650; }',
+        '.lampa-cinema-reaction-summary { display: flex; align-items: center; max-width: 100%; padding: .25em 0;',
+        '    font-size: .82em; font-weight: 650; }',
+        '.lampa-cinema-reaction-track { width: 7em; height: .42em; border-radius: .22em; background: rgba(255,255,255,.25);',
+        '    overflow: hidden; margin: 0 .5em; }',
+        '.lampa-cinema-reaction-fill { display: block; height: 100%; border-radius: inherit; background: #f9f4ec; }',
+        '.lampa-cinema-reaction-count { opacity: .7; margin-left: .65em; }',
+        '.lampa-cinema-media-button { white-space: nowrap; }',
+        '.lampa-cinema-media-icon { display: inline-block; width: 1.1em; height: .74em; flex: none; margin-right: .45em;',
+        '    border: .09em solid currentColor; border-radius: .13em; }',
         '@media (max-width: 790px) {',
         '    .lampa-cinema-page .lampa-cinema-hero {',
         '        min-height: calc(100vh - 9em); min-height: calc(100dvh - 9em); padding: 2em 1.3em 1.6em;',
@@ -282,31 +302,36 @@
         return '';
     }
 
+    function wideBackdrops(pictures) {
+        if (!Array.isArray(pictures)) return [];
+        return pictures.filter(function (picture) {
+            return picture && picture.file_path && (Number(picture.aspect_ratio) || picture.width / picture.height) >= 1.5;
+        }).sort(function (a, b) {
+            return Number(b.vote_average || 0) - Number(a.vote_average || 0) || b.width - a.width;
+        });
+    }
+
     function bestBackdropPaths(card) {
-        var pictures = card.images && card.images.backdrops;
-        var paths = [card.backdrop_path, card.background_image];
-        if (Array.isArray(pictures)) {
-            var wide = pictures.filter(function (picture) {
-                return picture && picture.file_path && Number(picture.aspect_ratio) >= 1.5;
-            }).sort(function (a, b) {
-                return Number(b.vote_average || 0) - Number(a.vote_average || 0) || b.width - a.width;
-            });
-            var clean = wide.filter(function (picture) {
-                return !picture.iso_639_1 && Number(picture.width) >= 1600;
-            });
-            paths = clean.slice(0, 2).map(function (picture) { return picture.file_path; }).concat(paths);
-            if (wide.length) paths.push(wide[0].file_path);
-        }
+        var wide = wideBackdrops(card.images && card.images.backdrops);
+        var clean = wide.filter(function (picture) {
+            return !picture.iso_639_1 && Number(picture.width) >= 1600;
+        });
+        var paths = clean.slice(0, 2).map(function (picture) { return picture.file_path; });
+        paths.push(card.backdrop_path, card.background_image, wide.length && wide[0].file_path);
         return paths.filter(function (path, index) { return path && paths.indexOf(path) === index; });
+    }
+
+    function backdropSizes(path) {
+        var size = window.innerWidth >= 1000 ? 'original' : 'w1280';
+        return [size, 'w1280', 'w780'].map(function (width) { return assetUrl(path, width); })
+            .filter(function (url, index, urls) { return url && urls.indexOf(url) === index; });
     }
 
     function backdropChoices(card) {
         var choices = [];
-        var size = window.innerWidth >= 1000 ? 'original' : 'w1280';
         bestBackdropPaths(card).forEach(function (path) {
-            [size, 'w1280', 'w780'].forEach(function (width) {
-                var url = assetUrl(path, width);
-                if (url && choices.indexOf(url) === -1) choices.push(url);
+            backdropSizes(path).forEach(function (url) {
+                if (choices.indexOf(url) === -1) choices.push(url);
             });
         });
         return choices;
@@ -448,7 +473,7 @@
         }
     }
 
-    function followCardScroll(root, surface, component, hero) {
+    function followCardScroll(root, surface, component, hero, media) {
         var controller = component && component.scroll;
         var viewport = controller && typeof controller.render === 'function' && nodeOf(controller.render(true));
         if (!viewport || !root.contains(viewport) || !viewport.contains(hero)) {
@@ -539,6 +564,7 @@
             var artworkDistance = Math.min(height * .84, range * .48);
             surface.art.style.opacity = artworkDistance > 0 ?
                 1 - Math.min(1, Math.max(0, position / artworkDistance)) : 1;
+            if (media) media.setAtTop(position <= 12);
         }
 
         function onScrollTransition(event) {
@@ -584,20 +610,23 @@
         if (element && element.parentNode) element.parentNode.removeChild(element);
     }
 
-    function paintBackdrop(surface, image, animate) {
-        if (surface.url === image.src) return;
-        var previous = surface.photo;
+    function appendPhoto(layer, image, animate, previous, duration) {
         var photo = document.createElement('div');
         photo.className = animate ? 'lampa-cinema-photo lampa-cinema-photo--appear' : 'lampa-cinema-photo';
         photo.style.backgroundImage = 'url(' + JSON.stringify(image.src) + ')';
-        surface.art.appendChild(photo);
-        surface.art.classList.add('lampa-cinema-art-ready');
-        surface.photo = photo;
-        surface.url = image.src;
+        layer.appendChild(photo);
         if (previous) {
-            if (animate) setTimeout(function () { removeElement(previous); }, 400);
+            if (animate) setTimeout(function () { removeElement(previous); }, duration);
             else removeElement(previous);
         }
+        return photo;
+    }
+
+    function paintBackdrop(surface, image, animate) {
+        if (surface.url === image.src) return;
+        surface.photo = appendPhoto(surface.art, image, animate, surface.photo, 400);
+        surface.art.classList.add('lampa-cinema-art-ready');
+        surface.url = image.src;
 
         if (surface.ambient.classList.contains('lampa-cinema-ambient--ready')) return;
         // Only a small map of the frame's colors is used beyond the hero.
@@ -620,6 +649,349 @@
         } catch (error) {
             // The CSS gradient is the fallback on devices without canvas support.
         }
+    }
+
+    function mediaStrings() {
+        var options = {
+            ru: ['Медиа', 'Фото', 'Видео', 'Слайды', 'Трейлер не найден', 'Для слайдов нужен ещё один кадр'],
+            uk: ['Медіа', 'Фото', 'Відео', 'Слайди', 'Трейлер не знайдено', 'Для слайдів потрібен ще один кадр'],
+            en: ['Media', 'Photo', 'Video', 'Slides', 'No trailer is available', 'No other stills are available']
+        };
+        return options[languageCode(setting('language'))] || options.ru;
+    }
+
+    function requestTitleMedia(card, object, part, params, done) {
+        var api = Lampa.Api && Lampa.Api.sources && Lampa.Api.sources.tmdb;
+        if (!api || typeof api.get !== 'function' || !/^[1-9]\d*$/.test(String(card.id || ''))) return done(null);
+        var method = object && object.method;
+        if (method !== 'movie' && method !== 'tv') {
+            method = card.media_type === 'tv' || card.first_air_date || (card.name && !card.title) ? 'tv' : 'movie';
+        }
+        try {
+            api.get(method + '/' + card.id + '/' + part, params, done, function () { done(null); }, { life: 1440 });
+        } catch (problem) {
+            done(null);
+        }
+    }
+
+    function trailerFor(videos, card) {
+        var list = videos && videos.results;
+        if (!Array.isArray(list)) return null;
+        var language = mediaLanguage(card);
+        var best = null;
+        var bestScore = -1;
+        list.forEach(function (clip) {
+            if (!clip) return;
+            var youtube = clip.youtube !== false && (!clip.site || /^youtube$/i.test(clip.site)) &&
+                typeof clip.key === 'string' && /^[A-Za-z0-9_-]{11}$/.test(clip.key);
+            var direct = typeof clip.url === 'string' && /^https?:\/\/[^\s]+\.(mp4|m3u8|webm)(?:[?#].*)?$/i.test(clip.url);
+            if (!youtube && !direct) return;
+            var score = /^trailer$/i.test(clip.type) ? 100 : /^teaser$/i.test(clip.type) ? 50 : 0;
+            var locale = languageCode(clip.iso_639_1);
+            score += locale === language ? 30 : locale === 'en' ? 20 : 0;
+            if (clip.official) score += 5;
+            if (score <= bestScore) return;
+            bestScore = score;
+            best = {
+                id: clip.key,
+                title: card.title || card.name || (typeof clip.name === 'string' ? clip.name : ''),
+                youtube: youtube,
+                url: youtube ? 'https://www.youtube.com/watch?v=' + clip.key : clip.url
+            };
+        });
+        return best;
+    }
+
+    function setActiveMedia(media) {
+        if (activeMedia === media) return;
+        if (activeMedia) activeMedia.setActive(false);
+        activeMedia = media;
+        if (media) media.setActive(true);
+    }
+
+    function mountMediaControls(hero, surface, card, data, object, current) {
+        var buttons = hero.querySelector('.full-start-new__buttons, .full-start__buttons');
+        if (!buttons || !Lampa.Select || typeof Lampa.Select.show !== 'function' || !Lampa.Controller) return;
+        var label = mediaStrings();
+        var button = document.createElement('div');
+        button.className = 'full-start__button selector lampa-cinema-media-button';
+        button.setAttribute('aria-label', label[0]);
+        button.setAttribute('title', label[0]);
+        button.setAttribute('role', 'button');
+        var icon = document.createElement('i');
+        icon.className = 'lampa-cinema-media-icon';
+        icon.setAttribute('aria-hidden', 'true');
+        var caption = document.createElement('span');
+        caption.textContent = label[0];
+        button.appendChild(icon);
+        button.appendChild(caption);
+        buttons.appendChild(button);
+
+        var mode = 'photo';
+        var atTop = true;
+        var active = false;
+        var timer;
+        var loadingImage;
+        var slideLayer;
+        var slidePhoto;
+        var slideUrl;
+        var slideIndex = -1;
+        var misses = 0;
+        var action = 0;
+        var paths;
+        var knownTrailer = trailerFor(data && data.videos, card);
+
+        function note(message) {
+            if (Lampa.Noty && Lampa.Noty.show) Lampa.Noty.show(message);
+        }
+
+        function updatePaths(pictures) {
+            var extra = wideBackdrops(pictures);
+            var clean = extra.filter(function (image) { return !image.iso_639_1; });
+            paths = [card.backdrop_path || card.background_image].concat((clean.length > 1 ? clean : extra).map(function (image) {
+                return image.file_path;
+            })).filter(function (path, index, list) {
+                return path && list.indexOf(path) === index && backdropSizes(path).length;
+            }).slice(0, 12);
+        }
+        updatePaths((card.images || (data && data.images) || {}).backdrops);
+
+        function stopRotation() {
+            clearTimeout(timer);
+            timer = null;
+            if (loadingImage) loadingImage.onload = loadingImage.onerror = null;
+            loadingImage = null;
+        }
+
+        function mayRotate() {
+            return active && atTop && mode === 'slides' && current();
+        }
+
+        function queueFrame() {
+            if (!mayRotate() || timer || loadingImage || paths.length < 2 || misses >= paths.length) return;
+            if (document.hidden || (Lampa.Player && Lampa.Player.opened && Lampa.Player.opened())) {
+                timer = setTimeout(function () { timer = null; queueFrame(); }, 1500);
+                return;
+            }
+            var lastUrl = slideUrl || surface.url;
+            var list;
+            for (var i = 0; i < paths.length; i++) {
+                slideIndex = (slideIndex + 1) % paths.length;
+                list = backdropSizes(paths[slideIndex]);
+                if (list.indexOf(lastUrl) === -1) break;
+            }
+            var began = Date.now();
+            var image = loadingImage = new Image();
+            image.decoding = 'async';
+            loadFirstImage(image, list, function (result) {
+                if (loadingImage !== image) return;
+                loadingImage = null;
+                if (!mayRotate()) return;
+                if (result < 0) misses++;
+                else misses = 0;
+                timer = setTimeout(function () {
+                    timer = null;
+                    if (!mayRotate()) return;
+                    if (result >= 0 && !document.hidden && !(Lampa.Player && Lampa.Player.opened && Lampa.Player.opened())) {
+                        if (!slideLayer) {
+                            slideLayer = document.createElement('div');
+                            slideLayer.className = 'lampa-cinema-slides';
+                            surface.art.appendChild(slideLayer);
+                        }
+                        slidePhoto = appendPhoto(slideLayer, image, true, slidePhoto, 680);
+                        slideUrl = image.src;
+                        surface.art.classList.add('lampa-cinema-art-ready');
+                    }
+                    queueFrame();
+                }, result < 0 ? 1400 : Math.max(0, 5000 - (Date.now() - began)));
+            });
+        }
+
+        function setMode(value) {
+            stopRotation();
+            mode = value;
+            misses = 0;
+            surface.art.classList.add('lampa-cinema-media-selected');
+            if (value === 'photo') {
+                removeElement(slideLayer);
+                slideLayer = slidePhoto = slideUrl = null;
+                slideIndex = -1;
+                if (!surface.photo) surface.art.classList.remove('lampa-cinema-art-ready');
+            } else queueFrame();
+        }
+
+        function openMenu() {
+            var controller = Lampa.Controller.enabled && Lampa.Controller.enabled();
+            var returnTo = controller && controller.name || 'full_start';
+            var features = window.lampa_settings && window.lampa_settings.disable_features;
+            var permit = Lampa.Account && Lampa.Account.Permit;
+            var media = [
+                { title: label[1], id: 'photo', selected: mode === 'photo' },
+                { title: label[2], id: 'video', hide: Boolean((features && features.trailers) || (permit && permit.child)) },
+                { title: label[3], id: 'slides', selected: mode === 'slides' }
+            ];
+            Lampa.Select.show({
+                title: label[0],
+                items: media,
+                onBack: function () { Lampa.Controller.toggle(returnTo); },
+                onSelect: function (item) {
+                    if (!current() || item.hide) return;
+                    if (Lampa.Activity && Lampa.Activity.mixState) Lampa.Activity.mixState();
+                    Lampa.Controller.toggle(returnTo);
+                    var ticket = ++action;
+                    if (item.id === 'photo') return setMode('photo');
+                    if (item.id === 'slides') {
+                        setMode('slides');
+                        if (paths.length > 1) return;
+                        requestTitleMedia(card, object, 'images', { filter: { include_image_language: 'null,en' } }, function (images) {
+                            if (!current() || ticket !== action || mode !== 'slides') return;
+                            updatePaths(images && images.backdrops);
+                            if (paths.length > 1) queueFrame();
+                            else {
+                                setMode('photo');
+                                if (active) note(label[5]);
+                            }
+                        });
+                        return;
+                    }
+
+                    function playTrailer(trailer) {
+                        if (!current() || !active || !atTop || ticket !== action) return;
+                        if (!trailer || !Lampa.Player || typeof Lampa.Player.play !== 'function') return note(label[4]);
+                        setMode('photo');
+                        Lampa.Player.play(trailer);
+                    }
+                    if (knownTrailer) playTrailer(knownTrailer);
+                    else requestTitleMedia(card, object, 'videos', { langs: 'en' }, function (clips) {
+                        knownTrailer = trailerFor(clips, card);
+                        playTrailer(knownTrailer);
+                    });
+                }
+            });
+        }
+
+        button.addEventListener('hover:enter', openMenu);
+        return {
+            setActive: function (value) {
+                active = value;
+                if (active) queueFrame();
+                else {
+                    action++;
+                    stopRotation();
+                }
+            },
+            setAtTop: function (value) {
+                if (atTop === value) return;
+                atTop = value;
+                if (atTop) queueFrame();
+                else stopRotation();
+            },
+            destroy: function () {
+                active = false;
+                action++;
+                stopRotation();
+                removeElement(slideLayer);
+                removeElement(button);
+            }
+        };
+    }
+
+    function mountRatings(hero, title, card, data) {
+        var panel = document.createElement('div');
+        panel.className = 'lampa-cinema-ratings';
+        var moved = [];
+        var observer;
+
+        function bringLeft(node) {
+            if (!node || !node.parentNode) return;
+            moved.push({ node: node, parent: node.parentNode, next: node.nextSibling });
+            panel.appendChild(node);
+        }
+
+        var scores = hero.querySelector('.tv-main-rate') ||
+            hero.querySelector('.full-start-new__rate-line, .full-start__rate-line');
+        bringLeft(scores);
+        if (!scores) {
+            var imdb = parseFloat(String(card.imdb_rating || '').replace(',', '.'));
+            var tmdb = parseFloat(card.vote_average);
+            var score = imdb > 0 ? imdb : tmdb;
+            if (isFinite(score) && score > 0) {
+                var badge = document.createElement('span');
+                badge.className = 'lampa-cinema-score';
+                badge.textContent = (imdb > 0 ? 'IMDb ' : 'TMDB ') + Math.min(10, score).toFixed(1);
+                panel.appendChild(badge);
+            }
+        }
+
+        var referenceMeter = hero.querySelector('.tv-new-rating');
+        bringLeft(referenceMeter);
+        var features = window.lampa_settings && window.lampa_settings.disable_features;
+        if (!referenceMeter && data && data.reactions && !(features && features.reactions) &&
+                !settingIsOff(setting('card_interfice_reactions'))) {
+            var summary = document.createElement('div');
+            summary.className = 'lampa-cinema-reaction-summary';
+            var positive = document.createElement('span');
+            var track = document.createElement('span');
+            track.className = 'lampa-cinema-reaction-track';
+            track.setAttribute('aria-hidden', 'true');
+            var fill = document.createElement('span');
+            fill.className = 'lampa-cinema-reaction-fill';
+            track.appendChild(fill);
+            var negative = document.createElement('span');
+            var count = document.createElement('span');
+            count.className = 'lampa-cinema-reaction-count';
+            summary.appendChild(positive);
+            summary.appendChild(track);
+            summary.appendChild(negative);
+            summary.appendChild(count);
+            panel.appendChild(summary);
+
+            function syncReactions() {
+                var list = data.reactions.result;
+                var favor = 0;
+                var against = 0;
+                var total = 0;
+                (Array.isArray(list) ? list : []).forEach(function (entry) {
+                    if (!entry) return;
+                    var quantity = Number(entry.counter);
+                    if (!isFinite(quantity) || quantity <= 0) return;
+                    switch (entry.type) {
+                        case 'fire': favor += 2 * quantity; break;
+                        case 'nice': favor += quantity; break;
+                        case 'bore': against += quantity; break;
+                        case 'shit': against += 2 * quantity; break;
+                        case 'think': break;
+                        default: return;
+                    }
+                    total += quantity;
+                });
+                summary.hidden = !total;
+                panel.hidden = !total && panel.children.length === 1;
+                if (!total) return;
+                var percentage = favor + against ? Math.round(100 * favor / (favor + against)) : 50;
+                positive.textContent = percentage + '%';
+                negative.textContent = (100 - percentage) + '%';
+                fill.style.width = percentage + '%';
+                count.textContent = Lampa.Utils && Lampa.Utils.numberWithSpaces ? Lampa.Utils.numberWithSpaces(total) : String(total);
+            }
+
+            syncReactions();
+            var stockReactions = hero.querySelector('.full-start-new__reactions, .full-start__reactions');
+            if (stockReactions && typeof MutationObserver === 'function') {
+                observer = new MutationObserver(syncReactions);
+                observer.observe(stockReactions, { childList: true, subtree: true, characterData: true });
+            }
+        }
+
+        if (!panel.children.length) return;
+        title.parentNode.insertBefore(panel, title.nextSibling || null);
+        return function () {
+            if (observer) observer.disconnect();
+            moved.forEach(function (item) {
+                item.parent.insertBefore(item.node, item.next && item.next.parentNode === item.parent ? item.next : null);
+            });
+            removeElement(panel);
+        };
     }
 
     function closeOpening(slide, opening) {
@@ -646,9 +1018,14 @@
     }
 
     function handleCinemaActivity(event) {
-        if (!event || event.component !== 'full') return;
+        if (!event) return;
+        if (event.component !== 'full') {
+            if (event.type === 'start') setActiveMedia(null);
+            return;
+        }
         var object = event.object;
         var slide = activityNode(object);
+        if (event.type === 'start') setActiveMedia(slide && slide[mediaKey] || null);
         if (!slide || !slide.querySelector('.activity__body')) return;
 
         var existing = slide[openingKey];
@@ -716,7 +1093,7 @@
     }
 
     function removePreviousCard(state) {
-        if (state.stopFollowingScroll) state.stopFollowingScroll();
+        if (state.cleanup) state.cleanup();
         removeElement(state.surface.art);
         removeElement(state.surface.ambient);
         if (state.titleSlot && state.titleSlot.parentNode) {
@@ -762,6 +1139,7 @@
         if (previous && previous.hero === hero && previous.card === card) return;
         if (previous) removePreviousCard(previous);
 
+        if (slide && slide[scrollCleanupKey]) slide[scrollCleanupKey]();
         var surface = createSurface();
         var state = root[stateKey] = { card: card, hero: hero, title: title, surface: surface };
         root.classList.add('lampa-cinema-page');
@@ -771,9 +1149,28 @@
         title.classList.add('lampa-cinema-title');
         title.setAttribute('data-cinema-type', titleType(card));
         if (title.textContent.trim().length > 38) title.classList.add('lampa-cinema-title-long');
-        if (slide && slide[scrollCleanupKey]) slide[scrollCleanupKey]();
-        state.stopFollowingScroll = followCardScroll(root, surface, component, hero);
-        if (slide) slide[scrollCleanupKey] = state.stopFollowingScroll;
+        var cleanupRatings = mountRatings(hero, title, card, event.data);
+        var media = mountMediaControls(hero, surface, card, event.data, object, current);
+        var cleanupScroll = followCardScroll(root, surface, component, hero, media);
+        state.cleanup = function () {
+            if (state.stopped) return;
+            state.stopped = true;
+            if (cleanupScroll) cleanupScroll();
+            if (cleanupRatings) cleanupRatings();
+            if (media) {
+                if (activeMedia === media) setActiveMedia(null);
+                media.destroy();
+                if (slide && slide[mediaKey] === media) delete slide[mediaKey];
+            }
+        };
+        if (slide) {
+            slide[scrollCleanupKey] = state.cleanup;
+            slide[mediaKey] = media;
+        }
+        if (media) {
+            var visibleActivity = Lampa.Activity && Lampa.Activity.active && Lampa.Activity.active();
+            if (!visibleActivity || (object && visibleActivity.activity === object.activity)) setActiveMedia(media);
+        }
 
         if (opening) {
             // Keep the same backdrop under the native body's opacity transition.
@@ -790,7 +1187,7 @@
         if (!preview && previewUrl(card) !== backdrops[0]) preview = startPreview(previewUrl(card));
 
         function current() {
-            return root[stateKey] === state && root.contains(hero) && hero.contains(title);
+            return !state.stopped && root[stateKey] === state && root.contains(hero) && hero.contains(title);
         }
 
         if (logos.length) {
