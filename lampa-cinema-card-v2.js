@@ -11,6 +11,7 @@
     var backgroundSetting = 'lampa_cinema_background';
     var backgroundAttribute = 'data-lampa-cinema-background';
     var shadeSetting = 'lampa_cinema_bottom_shade';
+    var watchColorSetting = 'lampa_cinema_watch_color';
     var activeMedia;
     if (!Lampa || !Lampa.Listener || document.getElementById(styleId)) return;
 
@@ -155,22 +156,16 @@
         '.lampa-cinema-hero .full-start-new__tagline { color: #dce2e9; margin-bottom: .65em; }',
         '.lampa-cinema-hero .full-start-new__rate-line { margin-bottom: .65em; }',
         '.lampa-cinema-hero .full-start-new__details { line-height: 1.35; margin-bottom: .55em; }',
-        '.lampa-cinema-hero .lampa-cinema-reactions-hidden,',
-        '.lampa-cinema-ratings .tv-new-rating__icon { display: none !important; }',
+        '.lampa-cinema-hero .full-start-new__reactions { margin-bottom: .7em; }',
+        '.lampa-cinema-hero .tv-new-rating { display: none !important; }',
         '.lampa-cinema-ratings { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start;',
         '    margin: 0 0 .7em; text-shadow: 0 1px 6px rgba(0,0,0,.55); }',
-        '.lampa-cinema-ratings:empty, .lampa-cinema-ratings[hidden], .lampa-cinema-reaction-summary[hidden] { display: none; }',
+        '.lampa-cinema-ratings:empty { display: none; }',
         '.lampa-cinema-ratings > .full-start-new__rate-line, .lampa-cinema-ratings > .full-start__rate-line,',
-        '.lampa-cinema-ratings > .tv-main-rate, .lampa-cinema-ratings > .tv-new-rating {',
+        '.lampa-cinema-ratings > .tv-main-rate {',
         '    position: static; justify-content: flex-start; margin: .14em .7em .14em 0; }',
         '.lampa-cinema-score { margin: .14em .7em .14em 0; padding: .35em .55em; border: 1px solid rgba(255,255,255,.32);',
         '    border-radius: .32em; background: rgba(0,0,0,.3); font-size: .85em; font-weight: 650; }',
-        '.lampa-cinema-reaction-summary { display: flex; align-items: center; max-width: 100%; padding: .25em 0;',
-        '    font-size: .82em; font-weight: 650; }',
-        '.lampa-cinema-reaction-track { width: 7em; height: .42em; border-radius: .22em; background: rgba(255,255,255,.25);',
-        '    overflow: hidden; margin: 0 .5em; }',
-        '.lampa-cinema-reaction-fill { display: block; height: 100%; border-radius: inherit; background: #f9f4ec; }',
-        '.lampa-cinema-reaction-count { opacity: .7; margin-left: .65em; }',
         '.lampa-cinema-media-button { white-space: nowrap; }',
         '.lampa-cinema-media-icon { display: inline-block; width: 1.1em; height: .74em; flex: none; margin-right: .45em;',
         '    border: .09em solid currentColor; border-radius: .13em; }',
@@ -182,8 +177,8 @@
         '    position: relative; z-index: 0; overflow: hidden;',
         '    min-width: 8.5em; min-height: 3em; height: auto; margin: 0; padding: .55em 1.2em;',
         '    font-size: 1.45em; line-height: 1.15; font-weight: 650; white-space: nowrap;',
-        '    color: #fff9f1; background: #222c3d; border: 1px solid #a9b7c9; border-radius: .52em;',
-        '    box-shadow: 0 .3em .9em rgba(0,0,0,.32);',
+        '    color: #fff9f1; background: #222c3d; border: 0; border-radius: .52em;',
+        '    box-shadow: 0 .3em .9em rgba(0,0,0,.32); transform-origin: left center;',
         '}',
         '.lampa-cinema-watch-art {',
         '    position: absolute; z-index: -1; top: -.3em; right: -.3em; bottom: -.3em; left: -.3em;',
@@ -196,27 +191,35 @@
         '    background: linear-gradient(100deg, rgba(5,8,14,.64), rgba(5,8,14,.56));',
         '}',
         '.lampa-cinema-hero[data-cinema-type="future"] .lampa-cinema-watch {',
-        '    background: #172e39; border-color: #8ed3d9; border-radius: .16em;',
+        '    background: #172e39; border-radius: .16em;',
         '    font-family: "Trebuchet MS", Verdana, sans-serif; letter-spacing: .055em;',
         '}',
         '.lampa-cinema-hero[data-cinema-type="classic"] .lampa-cinema-watch {',
-        '    background: #392a20; border-color: #e1bc8b; border-radius: .34em;',
+        '    background: #392a20; border-radius: .34em;',
         '    font-family: Georgia, "Times New Roman", serif; font-weight: 600;',
         '}',
         '.lampa-cinema-hero[data-cinema-type="suspense"] .lampa-cinema-watch {',
-        '    background: #302a22; border-color: #c9aa7a; border-radius: .12em;',
+        '    background: #302a22; border-radius: .12em;',
         '    font-family: "Arial Narrow", "Roboto Condensed", Arial, sans-serif; font-weight: 750;',
         '}',
         '.lampa-cinema-hero[data-cinema-type="horror"] .lampa-cinema-watch {',
-        '    background: #361e29; border-color: #d28899; border-radius: .08em;',
+        '    background: #361e29; border-radius: .08em;',
         '    font-family: Georgia, "Times New Roman", serif; letter-spacing: .035em;',
         '}',
         '.lampa-cinema-hero[data-cinema-type="family"] .lampa-cinema-watch {',
-        '    background: #2d2344; border-color: #d3b4ee; border-radius: 1.65em;',
+        '    background: #2d2344; border-radius: 1.65em;',
         '    font-family: Verdana, "Trebuchet MS", sans-serif; font-weight: 700;',
         '}',
+        '[data-lampa-cinema-watch-color="white"] .lampa-cinema-watch-row > .lampa-cinema-watch {',
+        '    background: #fff; color: #151515;',
+        '}',
+        '[data-lampa-cinema-watch-color="black"] .lampa-cinema-watch-row > .lampa-cinema-watch {',
+        '    background: #000; color: #fff;',
+        '}',
+        '[data-lampa-cinema-watch-color="white"] .lampa-cinema-watch-art,',
+        '[data-lampa-cinema-watch-color="black"] .lampa-cinema-watch-art { display: none; }',
         '.lampa-cinema-watch-row > .lampa-cinema-watch.focus, .lampa-cinema-watch-row > .lampa-cinema-watch:focus {',
-        '    border-color: #fff9f1; outline: .1em solid #fff9f1; outline-offset: .14em;',
+        '    outline: 0; transform: scale(1.055); box-shadow: 0 .4em 1.15em rgba(0,0,0,.6);',
         '}',
         '@media (max-width: 790px), (max-height: 600px) {',
         '    .lampa-cinema-page .lampa-cinema-hero {',
@@ -253,6 +256,7 @@
     if (storageListener && typeof storageListener.follow === 'function') {
         storageListener.follow('change', function (event) {
             if (event.name === shadeSetting) updateShade(event.value);
+            if (event.name === watchColorSetting) updateWatchColor(event.value);
             if ([backgroundSetting, 'background', 'background_type', 'light_version'].indexOf(event.name) !== -1) {
                 updateBackgroundMode(setting(backgroundSetting));
             }
@@ -263,6 +267,7 @@
     else {
         updateBackgroundMode(setting(backgroundSetting));
         updateShade(setting(shadeSetting));
+        updateWatchColor(setting(watchColorSetting));
         Lampa.Listener.follow('app', function (event) {
             if (event.type === 'ready') addInterfaceSettings();
         });
@@ -298,11 +303,19 @@
         document.documentElement.setAttribute('data-lampa-cinema-shade', settingIsOff(value) ? 'off' : 'on');
     }
 
+    function updateWatchColor(value) {
+        var color = value === 'white' || value === 'black' ? value : 'picture';
+        document.documentElement.setAttribute('data-lampa-cinema-watch-color', color);
+    }
+
     function addInterfaceSettings() {
         var translations = {
-            ru: ['Фон карточки', 'Чёрный', 'Как на главной', 'Градиент', 'Затемнение внизу карточки'],
-            uk: ['Тло картки', 'Чорний', 'Як на головній', 'Градієнт', 'Затемнення внизу картки'],
-            en: ['Card background', 'Black', 'Same as home', 'Gradient', 'Darken the bottom of the card']
+            ru: ['Фон карточки', 'Чёрный', 'Как на главной', 'Градиент', 'Затемнение внизу карточки',
+                'Цвет кнопки «Смотреть»', 'Белый', 'Под фон фильма или сериала'],
+            uk: ['Тло картки', 'Чорний', 'Як на головній', 'Градієнт', 'Затемнення внизу картки',
+                'Колір кнопки «Дивитися»', 'Білий', 'Під тло фільму або серіалу'],
+            en: ['Card background', 'Black', 'Same as home', 'Gradient', 'Darken the bottom of the card',
+                'Watch button color', 'White', 'Match the backdrop']
         };
         var text = translations[languageCode(setting('language'))] || translations.ru;
         if (Lampa.SettingsApi && Lampa.SettingsApi.addParam) {
@@ -321,9 +334,19 @@
                 field: { name: text[4] },
                 onChange: updateShade
             });
+            Lampa.SettingsApi.addParam({
+                component: 'interface',
+                param: {
+                    name: watchColorSetting, type: 'select', default: 'picture',
+                    values: { white: text[6], black: text[1], picture: text[7] }
+                },
+                field: { name: text[5] },
+                onChange: updateWatchColor
+            });
         }
         updateBackgroundMode(setting(backgroundSetting));
         updateShade(setting(shadeSetting));
+        updateWatchColor(setting(watchColorSetting));
     }
 
     function previewUrl(card, size) {
@@ -1146,23 +1169,22 @@
         };
     }
 
-    function mountRatings(hero, title, card, data) {
+    function mountRatings(hero, title, card) {
+        var column = title.parentNode;
         var panel = document.createElement('div');
         panel.className = 'lampa-cinema-ratings';
         var stockReactions = hero.querySelector('.full-start-new__reactions, .full-start__reactions');
         var moved = [];
-        var observer;
 
-        function bringLeft(node) {
-            if (!node || !node.parentNode) return;
+        function moveTo(node, parent, before) {
             moved.push({ node: node, parent: node.parentNode, next: node.nextSibling });
-            panel.appendChild(node);
+            parent.insertBefore(node, before || null);
         }
 
         var scores = hero.querySelector('.tv-main-rate') ||
             hero.querySelector('.full-start-new__rate-line, .full-start__rate-line');
-        bringLeft(scores);
-        if (!scores) {
+        if (scores) moveTo(scores, panel);
+        else {
             var imdb = parseFloat(String(card.imdb_rating || '').replace(',', '.'));
             var tmdb = parseFloat(card.vote_average);
             var score = imdb > 0 ? imdb : tmdb;
@@ -1174,76 +1196,21 @@
             }
         }
 
-        var referenceMeter = hero.querySelector('.tv-new-rating');
-        bringLeft(referenceMeter);
-        var features = window.lampa_settings && window.lampa_settings.disable_features;
-        if (!referenceMeter && data && data.reactions && !(features && features.reactions) &&
+        var hiddenCompat = hero.querySelector('.tv-hidden-compat');
+        if (stockReactions && hiddenCompat && hiddenCompat.contains(stockReactions) &&
                 !settingIsOff(setting('card_interfice_reactions'))) {
-            var summary = document.createElement('div');
-            summary.className = 'lampa-cinema-reaction-summary';
-            var positive = document.createElement('span');
-            var track = document.createElement('span');
-            track.className = 'lampa-cinema-reaction-track';
-            track.setAttribute('aria-hidden', 'true');
-            var fill = document.createElement('span');
-            fill.className = 'lampa-cinema-reaction-fill';
-            track.appendChild(fill);
-            var negative = document.createElement('span');
-            var count = document.createElement('span');
-            count.className = 'lampa-cinema-reaction-count';
-            summary.appendChild(positive);
-            summary.appendChild(track);
-            summary.appendChild(negative);
-            summary.appendChild(count);
-            panel.appendChild(summary);
-
-            function syncReactions() {
-                var list = data.reactions.result;
-                var favor = 0;
-                var against = 0;
-                var total = 0;
-                (Array.isArray(list) ? list : []).forEach(function (entry) {
-                    if (!entry) return;
-                    var quantity = Number(entry.counter);
-                    if (!isFinite(quantity) || quantity <= 0) return;
-                    switch (entry.type) {
-                        case 'fire': favor += 2 * quantity; break;
-                        case 'nice': favor += quantity; break;
-                        case 'bore': against += quantity; break;
-                        case 'shit': against += 2 * quantity; break;
-                        case 'think': break;
-                        default: return;
-                    }
-                    total += quantity;
-                });
-                summary.hidden = !total;
-                panel.hidden = !total && panel.children.length === 1;
-                if (!total) return;
-                var percentage = favor + against ? Math.round(100 * favor / (favor + against)) : 50;
-                positive.textContent = percentage + '%';
-                negative.textContent = (100 - percentage) + '%';
-                fill.style.width = percentage + '%';
-                count.textContent = Lampa.Utils && Lampa.Utils.numberWithSpaces ? Lampa.Utils.numberWithSpaces(total) : String(total);
-            }
-
-            syncReactions();
-            if (stockReactions && typeof MutationObserver === 'function') {
-                observer = new MutationObserver(syncReactions);
-                observer.observe(stockReactions, { childList: true, subtree: true, characterData: true });
-            }
+            // TV layouts can keep Lampa's live icon row inside their hidden template container.
+            var buttons = column.querySelector('.full-start-new__buttons');
+            moveTo(stockReactions, column, buttons && buttons.parentNode === column ? buttons : title.nextSibling);
         }
 
-        if (!panel.children.length && !stockReactions) return;
-        if (stockReactions) stockReactions.classList.add('lampa-cinema-reactions-hidden');
+        if (!panel.children.length && !moved.length) return;
         if (panel.children.length) {
-            var column = title.parentNode;
             var slot = stockReactions && stockReactions.parentNode === column ? stockReactions : title.nextSibling;
             column.insertBefore(panel, slot || null);
         }
         return function () {
-            if (observer) observer.disconnect();
-            if (stockReactions) stockReactions.classList.remove('lampa-cinema-reactions-hidden');
-            moved.forEach(function (item) {
+            moved.reverse().forEach(function (item) {
                 item.parent.insertBefore(item.node, item.next && item.next.parentNode === item.parent ? item.next : null);
             });
             removeElement(panel);
@@ -1408,7 +1375,7 @@
         hero.setAttribute('data-cinema-type', type);
         title.setAttribute('data-cinema-type', type);
         if (title.textContent.trim().length > 38) title.classList.add('lampa-cinema-title-long');
-        var cleanupRatings = mountRatings(hero, title, card, event.data);
+        var cleanupRatings = mountRatings(hero, title, card);
         var media = mountMediaControls(hero, surface, card, event.data, object, current);
         var cleanupScroll = followCardScroll(root, surface, component, hero, media);
         state.cleanup = function () {
