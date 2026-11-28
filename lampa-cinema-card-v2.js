@@ -11,7 +11,6 @@
     var backgroundSetting = 'lampa_cinema_background';
     var backgroundAttribute = 'data-lampa-cinema-background';
     var shadeSetting = 'lampa_cinema_bottom_shade';
-    var watchColorSetting = 'lampa_cinema_watch_color';
     var activeMedia;
     if (!Lampa || !Lampa.Listener || document.getElementById(styleId)) return;
 
@@ -96,8 +95,8 @@
         '.lampa-cinema-page .lampa-cinema-hero {',
         '    box-sizing: border-box; position: relative; z-index: 0; display: flex; flex-direction: column;',
         '    justify-content: flex-end; min-height: 78vh;',
-        '    min-height: calc(100vh - 6.5em); min-height: calc(100dvh - 6.5em);',
-        '    width: 100%; padding: 2em 4.2vw 4em; color: #f9f4ec;',
+        '    min-height: calc(100vh - 6em); min-height: calc(100dvh - 6em);',
+        '    width: 100%; padding: 2em 4.2vw 2.6em; color: #f9f4ec;',
         '}',
         '.lampa-cinema-page .full-start-new.lampa-cinema-hero > .full-start-new__body,',
         '.lampa-cinema-page .full-start.lampa-cinema-hero > .full-start__body {',
@@ -158,72 +157,12 @@
         '.lampa-cinema-hero .full-start-new__details { line-height: 1.35; margin-bottom: .55em; }',
         '.lampa-cinema-hero .full-start-new__reactions { margin-bottom: .7em; }',
         '.lampa-cinema-hero .tv-new-rating { display: none !important; }',
-        '.lampa-cinema-ratings { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start;',
-        '    margin: 0 0 .7em; text-shadow: 0 1px 6px rgba(0,0,0,.55); }',
-        '.lampa-cinema-ratings:empty { display: none; }',
-        '.lampa-cinema-ratings > .full-start-new__rate-line, .lampa-cinema-ratings > .full-start__rate-line,',
-        '.lampa-cinema-ratings > .tv-main-rate {',
-        '    position: static; justify-content: flex-start; margin: .14em .7em .14em 0; }',
-        '.lampa-cinema-score { margin: .14em .7em .14em 0; padding: .35em .55em; border: 1px solid rgba(255,255,255,.32);',
-        '    border-radius: .32em; background: rgba(0,0,0,.3); font-size: .85em; font-weight: 650; }',
         '.lampa-cinema-media-button { white-space: nowrap; }',
         '.lampa-cinema-media-icon { display: inline-block; width: 1.1em; height: .74em; flex: none; margin-right: .45em;',
         '    border: .09em solid currentColor; border-radius: .13em; }',
-        '.lampa-cinema-native-actions-hidden, .lampa-cinema-watch-row[hidden],',
-        '.lampa-cinema-watch-active .full-start__buttons-scroll { display: none !important; }',
-        '.lampa-cinema-watch-row { order: 1; display: flex; justify-content: flex-start; margin-top: .65em; }',
-        '.lampa-cinema-watch-row > .lampa-cinema-watch {',
-        '    box-sizing: border-box; display: flex; justify-content: center; align-items: center;',
-        '    position: relative; z-index: 0; overflow: hidden;',
-        '    min-width: 8.5em; min-height: 3em; height: auto; margin: 0; padding: .55em 1.2em;',
-        '    font-size: 1.45em; line-height: 1.15; font-weight: 650; white-space: nowrap;',
-        '    color: #fff9f1; background: #222c3d; border: 0; border-radius: .52em;',
-        '    box-shadow: 0 .3em .9em rgba(0,0,0,.32); transform-origin: left center;',
-        '}',
-        '.lampa-cinema-watch-art {',
-        '    position: absolute; z-index: -1; top: -.3em; right: -.3em; bottom: -.3em; left: -.3em;',
-        '    background: 52% 36% / cover no-repeat; opacity: 0; pointer-events: none;',
-        '    -webkit-filter: blur(.42em); filter: blur(.42em);',
-        '}',
-        '.lampa-cinema-watch-art--ready { opacity: .7; }',
-        '.lampa-cinema-watch-art:after {',
-        '    content: ""; position: absolute; top: 0; right: 0; bottom: 0; left: 0;',
-        '    background: linear-gradient(100deg, rgba(5,8,14,.64), rgba(5,8,14,.56));',
-        '}',
-        '.lampa-cinema-hero[data-cinema-type="future"] .lampa-cinema-watch {',
-        '    background: #172e39; border-radius: .16em;',
-        '    font-family: "Trebuchet MS", Verdana, sans-serif; letter-spacing: .055em;',
-        '}',
-        '.lampa-cinema-hero[data-cinema-type="classic"] .lampa-cinema-watch {',
-        '    background: #392a20; border-radius: .34em;',
-        '    font-family: Georgia, "Times New Roman", serif; font-weight: 600;',
-        '}',
-        '.lampa-cinema-hero[data-cinema-type="suspense"] .lampa-cinema-watch {',
-        '    background: #302a22; border-radius: .12em;',
-        '    font-family: "Arial Narrow", "Roboto Condensed", Arial, sans-serif; font-weight: 750;',
-        '}',
-        '.lampa-cinema-hero[data-cinema-type="horror"] .lampa-cinema-watch {',
-        '    background: #361e29; border-radius: .08em;',
-        '    font-family: Georgia, "Times New Roman", serif; letter-spacing: .035em;',
-        '}',
-        '.lampa-cinema-hero[data-cinema-type="family"] .lampa-cinema-watch {',
-        '    background: #2d2344; border-radius: 1.65em;',
-        '    font-family: Verdana, "Trebuchet MS", sans-serif; font-weight: 700;',
-        '}',
-        '[data-lampa-cinema-watch-color="white"] .lampa-cinema-watch-row > .lampa-cinema-watch {',
-        '    background: #fff; color: #151515;',
-        '}',
-        '[data-lampa-cinema-watch-color="black"] .lampa-cinema-watch-row > .lampa-cinema-watch {',
-        '    background: #000; color: #fff;',
-        '}',
-        '[data-lampa-cinema-watch-color="white"] .lampa-cinema-watch-art,',
-        '[data-lampa-cinema-watch-color="black"] .lampa-cinema-watch-art { display: none; }',
-        '.lampa-cinema-watch-row > .lampa-cinema-watch.focus, .lampa-cinema-watch-row > .lampa-cinema-watch:focus {',
-        '    outline: 0; transform: scale(1.055); box-shadow: 0 .4em 1.15em rgba(0,0,0,.6);',
-        '}',
         '@media (max-width: 790px), (max-height: 600px) {',
         '    .lampa-cinema-page .lampa-cinema-hero {',
-        '        min-height: calc(100vh - 9em); min-height: calc(100dvh - 9em); padding: 1.3em 1.3em 1.8em;',
+        '        min-height: calc(100vh - 9em); min-height: calc(100dvh - 9em); padding: 1.3em 1.3em 1.6em;',
         '    }',
         '    .lampa-cinema-hero .full-start-new__title, .lampa-cinema-hero .full-start__title { font-size: 2.65em; }',
         '    .lampa-cinema-hero .lampa-cinema-title-long { font-size: 2.2em; }',
@@ -256,7 +195,6 @@
     if (storageListener && typeof storageListener.follow === 'function') {
         storageListener.follow('change', function (event) {
             if (event.name === shadeSetting) updateShade(event.value);
-            if (event.name === watchColorSetting) updateWatchColor(event.value);
             if ([backgroundSetting, 'background', 'background_type', 'light_version'].indexOf(event.name) !== -1) {
                 updateBackgroundMode(setting(backgroundSetting));
             }
@@ -267,7 +205,6 @@
     else {
         updateBackgroundMode(setting(backgroundSetting));
         updateShade(setting(shadeSetting));
-        updateWatchColor(setting(watchColorSetting));
         Lampa.Listener.follow('app', function (event) {
             if (event.type === 'ready') addInterfaceSettings();
         });
@@ -303,19 +240,11 @@
         document.documentElement.setAttribute('data-lampa-cinema-shade', settingIsOff(value) ? 'off' : 'on');
     }
 
-    function updateWatchColor(value) {
-        var color = value === 'white' || value === 'black' ? value : 'picture';
-        document.documentElement.setAttribute('data-lampa-cinema-watch-color', color);
-    }
-
     function addInterfaceSettings() {
         var translations = {
-            ru: ['Фон карточки', 'Чёрный', 'Как на главной', 'Градиент', 'Затемнение внизу карточки',
-                'Цвет кнопки «Смотреть»', 'Белый', 'Под фон фильма или сериала'],
-            uk: ['Тло картки', 'Чорний', 'Як на головній', 'Градієнт', 'Затемнення внизу картки',
-                'Колір кнопки «Дивитися»', 'Білий', 'Під тло фільму або серіалу'],
-            en: ['Card background', 'Black', 'Same as home', 'Gradient', 'Darken the bottom of the card',
-                'Watch button color', 'White', 'Match the backdrop']
+            ru: ['Фон карточки', 'Чёрный', 'Как на главной', 'Градиент', 'Затемнение внизу карточки'],
+            uk: ['Тло картки', 'Чорний', 'Як на головній', 'Градієнт', 'Затемнення внизу картки'],
+            en: ['Card background', 'Black', 'Same as home', 'Gradient', 'Darken the bottom of the card']
         };
         var text = translations[languageCode(setting('language'))] || translations.ru;
         if (Lampa.SettingsApi && Lampa.SettingsApi.addParam) {
@@ -334,19 +263,9 @@
                 field: { name: text[4] },
                 onChange: updateShade
             });
-            Lampa.SettingsApi.addParam({
-                component: 'interface',
-                param: {
-                    name: watchColorSetting, type: 'select', default: 'picture',
-                    values: { white: text[6], black: text[1], picture: text[7] }
-                },
-                field: { name: text[5] },
-                onChange: updateWatchColor
-            });
         }
         updateBackgroundMode(setting(backgroundSetting));
         updateShade(setting(shadeSetting));
-        updateWatchColor(setting(watchColorSetting));
     }
 
     function previewUrl(card, size) {
@@ -707,11 +626,6 @@
         surface.photo = appendPhoto(surface.art, image, animate, surface.photo, 400);
         surface.art.classList.add('lampa-cinema-art-ready');
         surface.url = image.src;
-        if (surface.watchArt && !surface.watchArt.style.backgroundImage) {
-            // Reuse the first decoded frame so slides and quality upgrades keep the same accent.
-            surface.watchArt.style.backgroundImage = surface.photo.style.backgroundImage;
-            surface.watchArt.classList.add('lampa-cinema-watch-art--ready');
-        }
 
         if (surface.ambient.classList.contains('lampa-cinema-ambient--ready')) return;
         // Only a small map of the frame's colors is used beyond the hero.
@@ -794,192 +708,6 @@
         if (media) media.setActive(true);
     }
 
-    function mountWatchActions(hero, buttons, surface, canUse) {
-        if (window.lampa_settings && window.lampa_settings.read_only) return;
-        var language = languageCode(setting('language'));
-        var words = {
-            ru: ['Смотреть', 'Действия', 'Все источники', 'Закладки', 'Реакции', 'Подписка', 'Ещё'],
-            uk: ['Дивитися', 'Дії', 'Усі джерела', 'Закладки', 'Реакції', 'Підписка', 'Ще'],
-            en: ['Watch', 'Actions', 'All sources', 'Bookmarks', 'Reactions', 'Subscribe', 'More']
-        };
-        var labels = words[language] || words.ru;
-        var controller = Lampa.Controller;
-        var row = document.createElement('div');
-        row.className = 'lampa-cinema-watch-row';
-        row.hidden = true;
-        var watch = document.createElement('div');
-        watch.className = 'full-start__button selector lampa-cinema-watch';
-        watch.setAttribute('role', 'button');
-        watch.textContent = labels[0];
-        var watchArt = surface.watchArt = document.createElement('span');
-        watchArt.className = 'lampa-cinema-watch-art';
-        watchArt.setAttribute('aria-hidden', 'true');
-        watch.appendChild(watchArt);
-        row.appendChild(watch);
-        // Keep the watch control first in Lampa's selector collection and last in the visual layout.
-        hero.insertBefore(row, hero.firstChild);
-        var shown = false;
-        var focused = false;
-        var rightDown = false;
-        var holdTimer;
-        var observer;
-
-        function usableControl(control) {
-            return control.classList.contains('selector') && !control.classList.contains('hide') &&
-                !control.hidden && !control.disabled && control.getAttribute('aria-disabled') !== 'true';
-        }
-
-        function isBwa(control) {
-            var name = [control.className, control.textContent, control.getAttribute('aria-label'),
-                control.getAttribute('title')].join(' ');
-            return /(?:^|[^a-z0-9])bwa(?:rc|js|online)?(?![a-z0-9])/i.test(name);
-        }
-
-        function findControls() {
-            var primary = Array.prototype.filter.call(buttons.children, usableControl);
-            var providerList = hero.querySelector('.buttons--container');
-            var providers = providerList ? Array.prototype.filter.call(providerList.children, usableControl) : [];
-            var nativeWatch = primary.filter(function (control) {
-                return control.classList.contains('button--play') || control.classList.contains('button--tv-play');
-            })[0];
-            return {
-                primary: primary,
-                watch: nativeWatch,
-                bwa: providers.concat(primary).filter(isBwa)[0]
-            };
-        }
-
-        function syncWatch() {
-            var found = findControls();
-            var visible = Boolean(found.bwa || found.watch);
-            if (visible === shown) return;
-            shown = visible;
-            row.hidden = !visible;
-            if (visible) {
-                hero.classList.add('lampa-cinema-watch-active');
-                buttons.classList.add('lampa-cinema-native-actions-hidden');
-            } else {
-                hero.classList.remove('lampa-cinema-watch-active');
-                buttons.classList.remove('lampa-cinema-native-actions-hidden');
-            }
-        }
-
-        function trigger(control) {
-            if (!control || !hero.contains(control) || !usableControl(control)) return;
-            if (Lampa.Utils && typeof Lampa.Utils.trigger === 'function') {
-                Lampa.Utils.trigger(control, 'hover:enter');
-            } else {
-                var event = document.createEvent('Event');
-                event.initEvent('hover:enter', false, true);
-                control.dispatchEvent(event);
-            }
-        }
-
-        function openActions() {
-            if (!shown || !canUse()) return;
-            var active = controller.enabled && controller.enabled();
-            var returnTo = active && active.name || 'full_start';
-            if (returnTo !== 'full_start' && returnTo !== 'content') return;
-            var controls = findControls();
-            var items = [];
-            controls.primary.forEach(function (control) {
-                if (isBwa(control) || control.classList.contains('button--priority')) return;
-                var name;
-                if (control === controls.watch) {
-                    if (!controls.bwa) return;
-                    name = labels[2];
-                } else {
-                    name = (control.getAttribute('aria-label') || control.textContent || control.getAttribute('title') || '').trim();
-                    if (!name && control.classList.contains('button--book')) name = labels[3];
-                    if (!name && control.classList.contains('button--reaction')) name = labels[4];
-                    if (!name && control.classList.contains('button--subscribe')) name = labels[5];
-                    if (!name && control.classList.contains('button--options')) name = labels[6];
-                }
-                if (!name) return;
-                var entities = { '&': '&amp;', '<': '&lt;', '>': '&gt;' };
-                items.push({ title: name.replace(/[&<>]/g, function (character) { return entities[character]; }), control: control });
-            });
-            if (!items.length) return;
-
-            function restoreFocus() {
-                controller.toggle(returnTo);
-                if (shown && typeof controller.collectionFocus === 'function') controller.collectionFocus(watch, hero);
-            }
-            Lampa.Select.show({
-                title: labels[1],
-                items: items,
-                onBack: function () { if (canUse()) restoreFocus(); },
-                onSelect: function (item) {
-                    if (!canUse()) return;
-                    restoreFocus();
-                    trigger(item.control);
-                }
-            });
-        }
-
-        function play() {
-            if (!canUse()) return;
-            var controls = findControls();
-            trigger(controls.bwa || controls.watch);
-        }
-
-        function trackFocus(event) {
-            focused = event.target === watch;
-        }
-
-        function isRight(event) {
-            return event.key === 'ArrowRight' || event.key === 'Right' || event.keyCode === 39 || event.keyCode === 5;
-        }
-
-        function releaseRight() {
-            clearTimeout(holdTimer);
-            rightDown = false;
-        }
-
-        function keydown(event) {
-            if (!isRight(event)) return releaseRight();
-            if (!shown || !canUse() || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey ||
-                !(focused || watch.classList.contains('focus'))) return;
-            var active = controller.enabled && controller.enabled();
-            if (active && active.name !== 'full_start' && active.name !== 'content') return;
-            event.preventDefault();
-            if (rightDown) return;
-            rightDown = true;
-            holdTimer = setTimeout(function () {
-                if (focused || watch.classList.contains('focus')) openActions();
-            }, 550);
-        }
-
-        function keyup(event) {
-            if (isRight(event)) releaseRight();
-        }
-
-        watch.addEventListener('hover:enter', play);
-        watch.addEventListener('hover:long', openActions);
-        document.addEventListener('hover:focus', trackFocus, true);
-        window.addEventListener('keydown', keydown, true);
-        window.addEventListener('keyup', keyup, true);
-        window.addEventListener('blur', releaseRight);
-        if (typeof MutationObserver === 'function') {
-            observer = new MutationObserver(syncWatch);
-            observer.observe(hero, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'hidden', 'aria-disabled'] });
-        }
-        syncWatch();
-
-        return function () {
-            releaseRight();
-            if (observer) observer.disconnect();
-            document.removeEventListener('hover:focus', trackFocus, true);
-            window.removeEventListener('keydown', keydown, true);
-            window.removeEventListener('keyup', keyup, true);
-            window.removeEventListener('blur', releaseRight);
-            hero.classList.remove('lampa-cinema-watch-active');
-            buttons.classList.remove('lampa-cinema-native-actions-hidden');
-            delete surface.watchArt;
-            removeElement(row);
-        };
-    }
-
     function mountMediaControls(hero, surface, card, data, object, current) {
         var buttons = hero.querySelector('.full-start-new__buttons, .full-start__buttons');
         if (!buttons || !Lampa.Select || typeof Lampa.Select.show !== 'function' || !Lampa.Controller) return;
@@ -1011,7 +739,6 @@
         var action = 0;
         var paths;
         var knownTrailer = trailerFor(data && data.videos, card);
-        var cleanupWatch = mountWatchActions(hero, buttons, surface, function () { return active && current(); });
 
         function note(message) {
             if (Lampa.Noty && Lampa.Noty.show) Lampa.Noty.show(message);
@@ -1162,58 +889,26 @@
                 active = false;
                 action++;
                 stopRotation();
-                if (cleanupWatch) cleanupWatch();
                 removeElement(slideLayer);
                 removeElement(button);
             }
         };
     }
 
-    function mountRatings(hero, title, card) {
+    function restoreNativeReactions(hero, title) {
+        var compat = hero.querySelector('.tv-hidden-compat');
+        var row = compat && compat.querySelector('.full-start-new__reactions, .full-start__reactions');
+        if (!row || settingIsOff(setting('card_interfice_reactions'))) return;
+
+        // The TV template can store the live Lampa reaction icons in its hidden compatibility block.
+        var parent = row.parentNode;
+        var next = row.nextSibling;
         var column = title.parentNode;
-        var panel = document.createElement('div');
-        panel.className = 'lampa-cinema-ratings';
-        var stockReactions = hero.querySelector('.full-start-new__reactions, .full-start__reactions');
-        var moved = [];
-
-        function moveTo(node, parent, before) {
-            moved.push({ node: node, parent: node.parentNode, next: node.nextSibling });
-            parent.insertBefore(node, before || null);
-        }
-
-        var scores = hero.querySelector('.tv-main-rate') ||
-            hero.querySelector('.full-start-new__rate-line, .full-start__rate-line');
-        if (scores) moveTo(scores, panel);
-        else {
-            var imdb = parseFloat(String(card.imdb_rating || '').replace(',', '.'));
-            var tmdb = parseFloat(card.vote_average);
-            var score = imdb > 0 ? imdb : tmdb;
-            if (isFinite(score) && score > 0) {
-                var badge = document.createElement('span');
-                badge.className = 'lampa-cinema-score';
-                badge.textContent = (imdb > 0 ? 'IMDb ' : 'TMDB ') + Math.min(10, score).toFixed(1);
-                panel.appendChild(badge);
-            }
-        }
-
-        var hiddenCompat = hero.querySelector('.tv-hidden-compat');
-        if (stockReactions && hiddenCompat && hiddenCompat.contains(stockReactions) &&
-                !settingIsOff(setting('card_interfice_reactions'))) {
-            // TV layouts can keep Lampa's live icon row inside their hidden template container.
-            var buttons = column.querySelector('.full-start-new__buttons');
-            moveTo(stockReactions, column, buttons && buttons.parentNode === column ? buttons : title.nextSibling);
-        }
-
-        if (!panel.children.length && !moved.length) return;
-        if (panel.children.length) {
-            var slot = stockReactions && stockReactions.parentNode === column ? stockReactions : title.nextSibling;
-            column.insertBefore(panel, slot || null);
-        }
+        var buttons = column.querySelector('.full-start-new__buttons');
+        var before = buttons && buttons.parentNode === column ? buttons : title.nextSibling;
+        column.insertBefore(row, before || null);
         return function () {
-            moved.reverse().forEach(function (item) {
-                item.parent.insertBefore(item.node, item.next && item.next.parentNode === item.parent ? item.next : null);
-            });
-            removeElement(panel);
+            parent.insertBefore(row, next && next.parentNode === parent ? next : null);
         };
     }
 
@@ -1324,7 +1019,6 @@
             removeElement(state.titleSlot);
         }
         state.hero.classList.remove('lampa-cinema-hero');
-        state.hero.removeAttribute('data-cinema-type');
         state.title.classList.remove('lampa-cinema-title', 'lampa-cinema-title-long');
         state.title.removeAttribute('data-cinema-type');
     }
@@ -1371,18 +1065,16 @@
         hero.classList.add('lampa-cinema-hero');
         mountSurface(root, surface, hero);
         title.classList.add('lampa-cinema-title');
-        var type = titleType(card);
-        hero.setAttribute('data-cinema-type', type);
-        title.setAttribute('data-cinema-type', type);
+        title.setAttribute('data-cinema-type', titleType(card));
         if (title.textContent.trim().length > 38) title.classList.add('lampa-cinema-title-long');
-        var cleanupRatings = mountRatings(hero, title, card);
+        var cleanupReactions = restoreNativeReactions(hero, title);
         var media = mountMediaControls(hero, surface, card, event.data, object, current);
         var cleanupScroll = followCardScroll(root, surface, component, hero, media);
         state.cleanup = function () {
             if (state.stopped) return;
             state.stopped = true;
             if (cleanupScroll) cleanupScroll();
-            if (cleanupRatings) cleanupRatings();
+            if (cleanupReactions) cleanupReactions();
             if (media) {
                 if (activeMedia === media) setActiveMedia(null);
                 media.destroy();
