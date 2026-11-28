@@ -176,11 +176,47 @@
         '    border: .09em solid currentColor; border-radius: .13em; }',
         '.lampa-cinema-native-actions-hidden, .lampa-cinema-watch-row[hidden],',
         '.lampa-cinema-watch-active .full-start__buttons-scroll { display: none !important; }',
-        '.lampa-cinema-watch-row { order: 1; display: flex; justify-content: flex-end; margin-top: .65em; }',
+        '.lampa-cinema-watch-row { order: 1; display: flex; justify-content: flex-start; margin-top: .65em; }',
         '.lampa-cinema-watch-row > .lampa-cinema-watch {',
         '    box-sizing: border-box; display: flex; justify-content: center; align-items: center;',
+        '    position: relative; z-index: 0; overflow: hidden;',
         '    min-width: 8.5em; min-height: 3em; height: auto; margin: 0; padding: .55em 1.2em;',
         '    font-size: 1.45em; line-height: 1.15; font-weight: 650; white-space: nowrap;',
+        '    color: #fff9f1; background: #222c3d; border: 1px solid #a9b7c9; border-radius: .52em;',
+        '    box-shadow: 0 .3em .9em rgba(0,0,0,.32);',
+        '}',
+        '.lampa-cinema-watch-art {',
+        '    position: absolute; z-index: -1; top: -.3em; right: -.3em; bottom: -.3em; left: -.3em;',
+        '    background: 52% 36% / cover no-repeat; opacity: 0; pointer-events: none;',
+        '    -webkit-filter: blur(.42em); filter: blur(.42em);',
+        '}',
+        '.lampa-cinema-watch-art--ready { opacity: .7; }',
+        '.lampa-cinema-watch-art:after {',
+        '    content: ""; position: absolute; top: 0; right: 0; bottom: 0; left: 0;',
+        '    background: linear-gradient(100deg, rgba(5,8,14,.64), rgba(5,8,14,.56));',
+        '}',
+        '.lampa-cinema-hero[data-cinema-type="future"] .lampa-cinema-watch {',
+        '    background: #172e39; border-color: #8ed3d9; border-radius: .16em;',
+        '    font-family: "Trebuchet MS", Verdana, sans-serif; letter-spacing: .055em;',
+        '}',
+        '.lampa-cinema-hero[data-cinema-type="classic"] .lampa-cinema-watch {',
+        '    background: #392a20; border-color: #e1bc8b; border-radius: .34em;',
+        '    font-family: Georgia, "Times New Roman", serif; font-weight: 600;',
+        '}',
+        '.lampa-cinema-hero[data-cinema-type="suspense"] .lampa-cinema-watch {',
+        '    background: #302a22; border-color: #c9aa7a; border-radius: .12em;',
+        '    font-family: "Arial Narrow", "Roboto Condensed", Arial, sans-serif; font-weight: 750;',
+        '}',
+        '.lampa-cinema-hero[data-cinema-type="horror"] .lampa-cinema-watch {',
+        '    background: #361e29; border-color: #d28899; border-radius: .08em;',
+        '    font-family: Georgia, "Times New Roman", serif; letter-spacing: .035em;',
+        '}',
+        '.lampa-cinema-hero[data-cinema-type="family"] .lampa-cinema-watch {',
+        '    background: #2d2344; border-color: #d3b4ee; border-radius: 1.65em;',
+        '    font-family: Verdana, "Trebuchet MS", sans-serif; font-weight: 700;',
+        '}',
+        '.lampa-cinema-watch-row > .lampa-cinema-watch.focus, .lampa-cinema-watch-row > .lampa-cinema-watch:focus {',
+        '    border-color: #fff9f1; outline: .1em solid #fff9f1; outline-offset: .14em;',
         '}',
         '@media (max-width: 790px), (max-height: 600px) {',
         '    .lampa-cinema-page .lampa-cinema-hero {',
@@ -648,6 +684,11 @@
         surface.photo = appendPhoto(surface.art, image, animate, surface.photo, 400);
         surface.art.classList.add('lampa-cinema-art-ready');
         surface.url = image.src;
+        if (surface.watchArt && !surface.watchArt.style.backgroundImage) {
+            // Reuse the first decoded frame so slides and quality upgrades keep the same accent.
+            surface.watchArt.style.backgroundImage = surface.photo.style.backgroundImage;
+            surface.watchArt.classList.add('lampa-cinema-watch-art--ready');
+        }
 
         if (surface.ambient.classList.contains('lampa-cinema-ambient--ready')) return;
         // Only a small map of the frame's colors is used beyond the hero.
@@ -730,7 +771,7 @@
         if (media) media.setActive(true);
     }
 
-    function mountWatchActions(hero, buttons, canUse) {
+    function mountWatchActions(hero, buttons, surface, canUse) {
         if (window.lampa_settings && window.lampa_settings.read_only) return;
         var language = languageCode(setting('language'));
         var words = {
@@ -747,6 +788,10 @@
         watch.className = 'full-start__button selector lampa-cinema-watch';
         watch.setAttribute('role', 'button');
         watch.textContent = labels[0];
+        var watchArt = surface.watchArt = document.createElement('span');
+        watchArt.className = 'lampa-cinema-watch-art';
+        watchArt.setAttribute('aria-hidden', 'true');
+        watch.appendChild(watchArt);
         row.appendChild(watch);
         // Keep the watch control first in Lampa's selector collection and last in the visual layout.
         hero.insertBefore(row, hero.firstChild);
@@ -907,6 +952,7 @@
             window.removeEventListener('blur', releaseRight);
             hero.classList.remove('lampa-cinema-watch-active');
             buttons.classList.remove('lampa-cinema-native-actions-hidden');
+            delete surface.watchArt;
             removeElement(row);
         };
     }
@@ -942,7 +988,7 @@
         var action = 0;
         var paths;
         var knownTrailer = trailerFor(data && data.videos, card);
-        var cleanupWatch = mountWatchActions(hero, buttons, function () { return active && current(); });
+        var cleanupWatch = mountWatchActions(hero, buttons, surface, function () { return active && current(); });
 
         function note(message) {
             if (Lampa.Noty && Lampa.Noty.show) Lampa.Noty.show(message);
@@ -1311,6 +1357,7 @@
             removeElement(state.titleSlot);
         }
         state.hero.classList.remove('lampa-cinema-hero');
+        state.hero.removeAttribute('data-cinema-type');
         state.title.classList.remove('lampa-cinema-title', 'lampa-cinema-title-long');
         state.title.removeAttribute('data-cinema-type');
     }
@@ -1357,7 +1404,9 @@
         hero.classList.add('lampa-cinema-hero');
         mountSurface(root, surface, hero);
         title.classList.add('lampa-cinema-title');
-        title.setAttribute('data-cinema-type', titleType(card));
+        var type = titleType(card);
+        hero.setAttribute('data-cinema-type', type);
+        title.setAttribute('data-cinema-type', type);
         if (title.textContent.trim().length > 38) title.classList.add('lampa-cinema-title-long');
         var cleanupRatings = mountRatings(hero, title, card, event.data);
         var media = mountMediaControls(hero, surface, card, event.data, object, current);
