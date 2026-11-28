@@ -154,7 +154,8 @@
         '.lampa-cinema-hero .full-start-new__tagline { color: #dce2e9; margin-bottom: .65em; }',
         '.lampa-cinema-hero .full-start-new__rate-line { margin-bottom: .65em; }',
         '.lampa-cinema-hero .full-start-new__details { line-height: 1.35; margin-bottom: .55em; }',
-        '.lampa-cinema-hero .full-start-new__reactions { margin-bottom: .7em; }',
+        '.lampa-cinema-hero .lampa-cinema-reactions-hidden,',
+        '.lampa-cinema-ratings .tv-new-rating__icon { display: none !important; }',
         '.lampa-cinema-ratings { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start;',
         '    margin: 0 0 .7em; text-shadow: 0 1px 6px rgba(0,0,0,.55); }',
         '.lampa-cinema-ratings:empty, .lampa-cinema-ratings[hidden], .lampa-cinema-reaction-summary[hidden] { display: none; }',
@@ -899,6 +900,7 @@
     function mountRatings(hero, title, card, data) {
         var panel = document.createElement('div');
         panel.className = 'lampa-cinema-ratings';
+        var stockReactions = hero.querySelector('.full-start-new__reactions, .full-start__reactions');
         var moved = [];
         var observer;
 
@@ -976,17 +978,22 @@
             }
 
             syncReactions();
-            var stockReactions = hero.querySelector('.full-start-new__reactions, .full-start__reactions');
             if (stockReactions && typeof MutationObserver === 'function') {
                 observer = new MutationObserver(syncReactions);
                 observer.observe(stockReactions, { childList: true, subtree: true, characterData: true });
             }
         }
 
-        if (!panel.children.length) return;
-        title.parentNode.insertBefore(panel, title.nextSibling || null);
+        if (!panel.children.length && !stockReactions) return;
+        if (stockReactions) stockReactions.classList.add('lampa-cinema-reactions-hidden');
+        if (panel.children.length) {
+            var column = title.parentNode;
+            var slot = stockReactions && stockReactions.parentNode === column ? stockReactions : title.nextSibling;
+            column.insertBefore(panel, slot || null);
+        }
         return function () {
             if (observer) observer.disconnect();
+            if (stockReactions) stockReactions.classList.remove('lampa-cinema-reactions-hidden');
             moved.forEach(function (item) {
                 item.parent.insertBefore(item.node, item.next && item.next.parentNode === item.parent ? item.next : null);
             });
